@@ -22,13 +22,19 @@ done
 # --- Create install directory and move into it --------------------------------
 echo "Preparing installation directory: $INSTALL_DIR"
 mkdir -p "$INSTALL_DIR"
+
+# If running with sudo, ensure the directory is owned by the real user
+if [ -n "${SUDO_USER:-}" ]; then
+    chown "$SUDO_USER:$SUDO_USER" "$INSTALL_DIR"
+fi
+
 cd "$INSTALL_DIR"
 
 # --- Download files from repository -------------------------------------------
 echo "Downloading files from repository..."
-curl -fsSL "$REPO_RAW/docker-compose.yml" -o docker-compose.yml
-curl -fsSL "$REPO_RAW/start.sh"           -o start.sh
-chmod +x start.sh
+curl -fsSL "$REPO_RAW/docker-compose.yml" -o "$INSTALL_DIR/docker-compose.yml"
+curl -fsSL "$REPO_RAW/start.sh"           -o "$INSTALL_DIR/start.sh"
+chmod +x "$INSTALL_DIR/start.sh"
 echo "Files downloaded."
 
 # --- Run deployment -----------------------------------------------------------
