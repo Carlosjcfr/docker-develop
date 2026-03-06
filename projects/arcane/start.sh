@@ -34,9 +34,13 @@ if [ -f .env ] && grep -q "^ENCRYPTION_KEY=" .env; then
     JWT_SECRET=$(grep "^JWT_SECRET=" .env          | cut -d '=' -f2-)
 else
     echo "First run detected. Generating secure encryption keys..."
-    # 64-character hex keys for Arcane
+    # 64-character hex keys for Arcane.
+    # pipefail is temporarily disabled: head -c closes the pipe early causing
+    # SIGPIPE on tr, which would silently kill the script under set -o pipefail.
+    set +o pipefail
     ENCRYPTION_KEY=$(tr -dc 'a-f0-9' </dev/urandom | head -c 64)
     JWT_SECRET=$(tr -dc 'a-f0-9'     </dev/urandom | head -c 64)
+    set -o pipefail
 fi
 
 # --- UID/GID & PODMAN SOCKET RESOLUTION --------------------------------------
