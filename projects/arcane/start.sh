@@ -48,8 +48,20 @@ PGID=$(id -g)
 PODMAN_SOCK="/run/user/${PUID}/podman/podman.sock"
 
 if [ ! -S "$PODMAN_SOCK" ]; then
-    echo "WARNING: Podman socket not found at $PODMAN_SOCK" >&2
-    echo "         Make sure the Podman service is running: systemctl --user start podman.socket" >&2
+    echo "Podman socket not found. Attempting to enable and start it..."
+    if systemctl --user enable --now podman.socket 2>/dev/null; then
+        # Wait up to 10 seconds for the socket to appear
+        for i in $(seq 1 10); do
+            [ -S "$PODMAN_SOCK" ] && break
+            sleep 1
+        done
+    fi
+    if [ ! -S "$PODMAN_SOCK" ]; then
+        echo "ERROR: Could not start Podman socket at $PODMAN_SOCK" >&2
+        echo "       Try manually: systemctl --user enable --now podman.socket" >&2
+        exit 1
+    fi
+    echo "Podman socket ready."
 fi
 
 # --- WRITE .env (restricted permissions 600) ----------------------------------
