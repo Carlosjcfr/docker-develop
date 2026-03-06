@@ -1,0 +1,47 @@
+# ==============================================================================
+# Caddyfile — Global Caddy Reverse Proxy Configuration
+#
+# Place this file inside the ./conf/ directory (mapped to /etc/caddy in Docker).
+# Only one Caddyfile should exist in that directory.
+#
+# Docs: https://caddyserver.com/docs/caddyfile
+# ==============================================================================
+
+# ── Global Options ────────────────────────────────────────────────────────────
+{
+    # Enable the Admin API so CaddyManager can control this Caddy instance.
+    # Bound to all interfaces inside the container network; NOT exposed to host.
+    admin 0.0.0.0:2019
+
+    # Email used by ACME (Let's Encrypt) for TLS certificate notifications.
+    # Replace with a real address before deploying to production.
+    email you@example.com
+
+    # Default HTTPS port (leave as 443 for standard deployments)
+    https_port 443
+    http_port  80
+}
+
+# ── Example: CaddyManager UI via reverse proxy ────────────────────────────────
+# Uncomment and adapt this block to expose CaddyManager behind a domain with
+# automatic HTTPS instead of via its exposed port directly.
+#
+# caddy-manager.example.com {
+#     reverse_proxy caddymanager-frontend:80
+# }
+
+# ── Example: Reverse proxy to another service ─────────────────────────────────
+# Replace 'app.example.com' and the upstream address with your own values.
+# In Docker networks, use the container name as the hostname, NOT localhost.
+#
+# app.example.com {
+#     reverse_proxy myapp-container:3000
+# }
+
+# ── Example: Static site ──────────────────────────────────────────────────────
+# Serve static files from the ./site directory (mapped to /srv in the container).
+#
+# static.example.com {
+#     root * /srv
+#     file_server
+# }
