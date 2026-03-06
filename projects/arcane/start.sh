@@ -105,8 +105,8 @@ echo ".env file ready with 600 permissions."
 # Directories must exist and be owned by the current user BEFORE podman-compose
 # starts. If Podman creates them, it does so as root, causing permission errors.
 echo "Preparing data directories..."
-mkdir -p "${INSTALL_DIR}/data" "${INSTALL_DIR}/stacks"
-chown -R "${PUID}:${PGID}" "${INSTALL_DIR}/data" "${INSTALL_DIR}/stacks"
+mkdir -p "${INSTALL_DIR}/data" "${INSTALL_DIR}/projects"
+chown -R "${PUID}:${PGID}" "${INSTALL_DIR}/data" "${INSTALL_DIR}/projects"
 echo "Directories ready."
 
 # --- DEPLOY -------------------------------------------------------------------

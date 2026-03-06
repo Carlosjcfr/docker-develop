@@ -21,8 +21,8 @@ services:
       # Persistent application data (config, sessions, internal DB).
       # :Z applies the correct private SELinux label for Podman rootless.
       - ./data:/app/data:Z
-      # Host directory for Docker Compose stacks/projects managed by Arcane.
-      - ./stacks:/app/data/stacks:Z
+      # Host directory for Compose stacks/projects managed by Arcane.
+      - ./projects:/app/data/projects:Z
 
     environment:
       - APP_URL=${APP_URL}
