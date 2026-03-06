@@ -5,6 +5,8 @@ set -euo pipefail
 # ARCANE - Deployment Script
 # ==============================================================================
 
+INSTALL_DIR="/opt/arcane"
+
 # --- Dependency checks --------------------------------------------------------
 if ! command -v podman-compose &> /dev/null; then
     echo "ERROR: 'podman-compose' not found. Please install it before continuing." >&2
@@ -100,11 +102,12 @@ umask "$OLD_UMASK"
 echo ".env file ready with 600 permissions."
 
 # --- PREPARE BIND-MOUNT DIRECTORIES ------------------------------------------
-# These directories are mounted into the container. They must exist before
-# podman-compose starts, otherwise Podman creates them as root.
+# Directories must exist and be owned by the current user BEFORE podman-compose
+# starts. If Podman creates them, it does so as root, causing permission errors.
 echo "Preparing data directories..."
-mkdir -p ./data ./stacks
-echo "Directories ready: ./data  ./stacks"
+mkdir -p "${INSTALL_DIR}/data" "${INSTALL_DIR}/stacks"
+chown -R "${PUID}:${PGID}" "${INSTALL_DIR}/data" "${INSTALL_DIR}/stacks"
+echo "Directories ready."
 
 # --- DEPLOY -------------------------------------------------------------------
 echo "Starting services with podman-compose..."
