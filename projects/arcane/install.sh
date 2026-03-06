@@ -6,10 +6,15 @@ set -euo pipefail
 # Downloads start.sh and docker-compose.yml from the public repository
 # and runs the deployment.
 # Usage: bash install.sh
+#   OR:  curl -fsSL <raw_url>/install.sh | bash
 # ==============================================================================
 
 INSTALL_DIR="/opt/arcane"
 REPO_RAW="https://raw.githubusercontent.com/Carlosjcfr/docker-develop/main/projects/arcane"
+TMP_DIR=$(mktemp -d)
+
+# Cleanup temp dir on exit (error or success)
+trap 'rm -rf "$TMP_DIR"' EXIT
 
 # --- Dependency checks --------------------------------------------------------
 for cmd in curl podman-compose; do
@@ -19,24 +24,22 @@ for cmd in curl podman-compose; do
     fi
 done
 
-# --- Create install directory and move into it --------------------------------
+# --- Create install directory -------------------------------------------------
 echo "Preparing installation directory: $INSTALL_DIR"
 mkdir -p "$INSTALL_DIR"
 
-# If running with sudo, ensure the directory is owned by the real user
-if [ -n "${SUDO_USER:-}" ]; then
-    chown "$SUDO_USER:$SUDO_USER" "$INSTALL_DIR"
-fi
-
-cd "$INSTALL_DIR"
-
-# --- Download files from repository -------------------------------------------
+# --- Download files to /tmp first (always writable) --------------------------
 echo "Downloading files from repository..."
-curl -fsSL "$REPO_RAW/docker-compose.yml" -o "$INSTALL_DIR/docker-compose.yml"
-curl -fsSL "$REPO_RAW/start.sh"           -o "$INSTALL_DIR/start.sh"
-chmod +x "$INSTALL_DIR/start.sh"
+curl -fsSL "$REPO_RAW/docker-compose.yml" -o "$TMP_DIR/docker-compose.yml"
+curl -fsSL "$REPO_RAW/start.sh"           -o "$TMP_DIR/start.sh"
+chmod +x "$TMP_DIR/start.sh"
 echo "Files downloaded."
+
+# --- Move files to install directory ------------------------------------------
+mv "$TMP_DIR/docker-compose.yml" "$INSTALL_DIR/docker-compose.yml"
+mv "$TMP_DIR/start.sh"           "$INSTALL_DIR/start.sh"
 
 # --- Run deployment -----------------------------------------------------------
 echo "Running start.sh..."
+cd "$INSTALL_DIR"
 bash start.sh
