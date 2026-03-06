@@ -1,47 +1,42 @@
 # Arcane
 
-Modern Docker/Podman management UI. Self-hosted deployment using Podman rootless on a Proxmox VM.
+Self-hosted Docker/Podman management UI deployed with Podman rootless.
 
 ## Requirements
 
-- Podman (rootless)
-- `podman-compose`
+- Podman (rootless) + `podman-compose`
 - `curl`
 
-## Quick Install
+## Install
 
-Run this single command on the target server:
+**1. Prepare the installation directory** *(only if `/opt` is not writable by your user)*
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/Carlosjcfr/docker-develop/main/projects/arcane/install.sh \
+sudo mkdir -p /opt/arcane && sudo chown admin-sigergy:admin-sigergy /opt/arcane
+```
+
+**2. Run the installer**
+
+```bash
+curl -fsSL "https://raw.githubusercontent.com/Carlosjcfr/docker-develop/main/projects/arcane/install.sh" \
   -o /tmp/install.sh && bash /tmp/install.sh
 ```
 
-> **Note:** Do **not** pipe directly to bash (`curl ... | bash`) as it may cause write errors.
-> Download the script first, then execute it.
+> ⚠️ Always download the script first, then execute it. Do **not** pipe directly to bash (`curl ... | bash`).
 
-## Re-deploy / Restart
-
-If Arcane is already installed and you need to redeploy:
+## Re-deploy / Update
 
 ```bash
-cd /opt/arcane
-bash start.sh
+cd /opt/arcane && bash start.sh
 ```
 
-## Files
+## Directory structure
 
-| File | Description |
-|---|---|
-| `install.sh` | One-time installer: downloads files and runs `start.sh` |
-| `start.sh` | Deployment logic: generates `.env` and starts services |
-| `docker-compose.yml` | Service definition for Arcane (Podman rootless) |
-
-## Data directories
-
-All data is stored under `/opt/arcane/`:
-
-| Path | Contents |
-|---|---|
-| `data/` | Internal Arcane data (config, sessions, DB) |
-| `stacks/` | Docker Compose stacks managed through the UI |
+```
+/opt/arcane/
+├── data/        → Arcane internal data (config, sessions)
+├── projects/    → Docker Compose projects managed from the UI
+├── .env         → Auto-generated secrets (do not edit)
+├── docker-compose.yml
+└── start.sh
+```
