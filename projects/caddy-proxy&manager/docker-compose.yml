@@ -3,9 +3,9 @@
 # Reverse Proxy + Web Management UI
 #
 # Services:
-#   caddy            — Caddy reverse proxy (HTTP/HTTPS/HTTP3) on ports 80/443
-#   caddymanager-backend  — CaddyManager REST API (internal only)
-#   caddymanager-frontend — CaddyManager Web UI on port 8080
+#   caddy                   — Caddy reverse proxy (HTTP/HTTPS/HTTP3) on ports 80/443
+#   caddymanager-backend    — CaddyManager REST API (internal only)
+#   caddymanager-frontend   — CaddyManager Web UI on port ${CADDYMANAGER_UI_PORT}
 #
 # Docs:
 #   Caddy:        https://caddyserver.com/docs/running#docker-compose
@@ -23,8 +23,8 @@ services:
     restart: unless-stopped
 
     ports:
-      - "80:80" # HTTP
-      - "443:443" # HTTPS
+      - "80:80"       # HTTP
+      - "443:443"     # HTTPS
       - "443:443/udp" # HTTP/3 (QUIC)
 
     volumes:
