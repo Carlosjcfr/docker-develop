@@ -8,6 +8,18 @@ set -euo pipefail
 INSTALL_DIR="/opt/arcane"
 
 # --- Dependency checks --------------------------------------------------------
+if [[ $EUID -eq 0 ]]; then
+   echo "-----------------------------------------------------------------"
+   echo " ERROR: DO NOT RUN THIS SCRIPT WITH SUDO"
+   echo "-----------------------------------------------------------------"
+   echo " To maintain a Rootless Podman installation, this script must be"
+   echo " executed as a normal user (admin-sigergy)."
+   echo ""
+   echo " PLEASE RETRY WITH: bash start.sh"
+   echo "-----------------------------------------------------------------"
+   exit 1
+fi
+
 if ! command -v podman-compose &> /dev/null; then
     echo "ERROR: 'podman-compose' not found. Please install it before continuing." >&2
     exit 1
@@ -48,35 +60,36 @@ fi
 # --- UID/GID & PODMAN SOCKET RESOLUTION --------------------------------------
 PUID=$(id -u)
 PGID=$(id -g)
+USER_NAME=$(id -un)
+
+# 1. Enable lingering for the user to keep processes running after logout
+echo "Ensuring user lingering is enabled..."
+sudo loginctl enable-linger "$USER_NAME"
 
 # Rootless Podman socket path — unique per user, resolved at deploy time.
-# This is written to .env so docker-compose.yml can reference it as ${PODMAN_SOCK}.
+# ... (rest of socket logic) ...
 PODMAN_SOCK="/run/user/${PUID}/podman/podman.sock"
 
 if [ ! -S "$PODMAN_SOCK" ]; then
     echo "Podman socket not found. Attempting to enable and start it..."
-    if systemctl --user enable --now podman.socket 2>/dev/null; then
-        # Wait up to 10 seconds for the socket to appear
-        for i in $(seq 1 10); do
-            [ -S "$PODMAN_SOCK" ] && break
-            sleep 1
-        done
-    fi
+    systemctl --user enable --now podman.socket 2>/dev/null || true
+    # Wait up to 10 seconds for the socket to appear
+    for i in $(seq 1 10); do
+        [ -S "$PODMAN_SOCK" ] && break
+        sleep 1
+    done
     if [ ! -S "$PODMAN_SOCK" ]; then
         echo "ERROR: Could not start Podman socket at $PODMAN_SOCK" >&2
-        echo "       Try manually: systemctl --user enable --now podman.socket" >&2
         exit 1
     fi
     echo "Podman socket ready."
 fi
 
 # --- WRITE .env (restricted permissions 600) ----------------------------------
+# ... (existing umask and cat logic) ...
 echo "Generating .env file..."
-
-# umask 177 ensures the file is created with 600 permissions (owner read/write only)
 OLD_UMASK=$(umask)
 umask 177
-
 cat <<EOF > .env
 # =============================================================================
 # ARCANE - Environment Variables
@@ -87,34 +100,37 @@ HOST_IP=$HOST_IP
 PUID=$PUID
 PGID=$PGID
 APP_URL=http://$HOST_IP:3552
-
-# Podman rootless socket (resolved at deploy time)
 PODMAN_SOCK=$PODMAN_SOCK
-
-# Security
 ENCRYPTION_KEY=$ENCRYPTION_KEY
 JWT_SECRET=$JWT_SECRET
 EOF
-
-# Restore original umask
 umask "$OLD_UMASK"
 
-echo ".env file ready with 600 permissions."
-
 # --- PREPARE BIND-MOUNT DIRECTORIES ------------------------------------------
-# Directories must exist and be owned by the current user BEFORE podman-compose
-# starts. If Podman creates them, it does so as root, causing permission errors.
 echo "Preparing data directories..."
 mkdir -p "${INSTALL_DIR}/data" "${INSTALL_DIR}/projects"
-chown -R "${PUID}:${PGID}" "${INSTALL_DIR}/data" "${INSTALL_DIR}/projects"
-echo "Directories ready."
+# Note: chown might need sudo if directories were created by another user previously.
+sudo chown -R "${PUID}:${PGID}" "${INSTALL_DIR}/data" "${INSTALL_DIR}/projects"
 
-# --- DEPLOY -------------------------------------------------------------------
+# --- DEPLOY & PERSISTENCE (Systemd) -------------------------------------------
 echo "Starting services with podman-compose..."
 podman-compose up -d
 
+echo "Configuring systemd service for persistence..."
+# Create directory for local systemd user units if it doesn't exist
+mkdir -p ~/.config/systemd/user/
+
+# Generate systemd unit for the container named 'arcane'
+# We use --new to ensure the container is recreated from the image on service start
+podman generate systemd --name arcane --files --new --restart-policy=always --dest ~/.config/systemd/user/
+
+# Reload systemd to recognize the new unit and enable it
+systemctl --user daemon-reload
+systemctl --user enable --now container-arcane.service
+
 echo ""
 echo "================================================================="
-echo " ARCANE deployed successfully."
+echo " ARCANE deployed and secured with systemd."
 echo " Access it at: http://$HOST_IP:3552"
+echo " The container will now persist after logout and on reboots."
 echo "================================================================="
