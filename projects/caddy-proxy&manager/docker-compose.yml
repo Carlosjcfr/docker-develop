@@ -1,0 +1,129 @@
+# ==============================================================================
+# CADDY PROXY + CADDY MANAGER
+# Reverse Proxy + Web Management UI
+#
+# Services:
+#   caddy            — Caddy reverse proxy (HTTP/HTTPS/HTTP3) on ports 80/443
+#   caddymanager-backend  — CaddyManager REST API (internal only)
+#   caddymanager-frontend — CaddyManager Web UI on port 8080
+#
+# Docs:
+#   Caddy:        https://caddyserver.com/docs/running#docker-compose
+#   CaddyManager: https://github.com/caddymanager/caddymanager
+#
+# Default CaddyManager login: admin / caddyrocks  (change after first login)
+# ==============================================================================
+
+services:
+
+  # ── Caddy Reverse Proxy ────────────────────────────────────────────────────
+  caddy:
+    image: caddy:${CADDY_VERSION:-2}
+    container_name: caddy
+    restart: unless-stopped
+
+    ports:
+      - "80:80" # HTTP
+      - "443:443" # HTTPS
+      - "443:443/udp" # HTTP/3 (QUIC)
+
+    volumes:
+      # Caddyfile config directory — place your Caddyfile inside ./conf/
+      - ./conf:/etc/caddy:Z
+      # Static site files (optional — remove if not serving static content)
+      - ./site:/srv:Z
+      # Caddy TLS certificates and ACME state (must be persistent)
+      - caddy_data:/data
+      # Caddy runtime config and auto-save state
+      - caddy_config:/config
+
+    # Expose the Admin API so CaddyManager can manage this instance
+    environment:
+      - CADDY_ADMIN=0.0.0.0:2019
+
+    networks:
+      - caddy_net
+
+  # ── CaddyManager Backend (API) ─────────────────────────────────────────────
+  caddymanager-backend:
+    image: caddymanager/caddymanager-backend:latest
+    container_name: caddymanager-backend
+    restart: unless-stopped
+
+    # Not exposed directly — all API access goes through the frontend proxy
+    volumes:
+      # SQLite database persistent storage
+      - caddymanager_sqlite:/app/data:Z
+
+    environment:
+      # ── Server ──────────────────────────────────────────────────────────────
+      - PORT=${BACKEND_PORT:-3000}
+
+      # ── Database ────────────────────────────────────────────────────────────
+      - DB_ENGINE=${DB_ENGINE:-sqlite}
+      - SQLITE_DB_PATH=/app/data/caddymanager.sqlite
+
+      # ── Security ────────────────────────────────────────────────────────────
+      - JWT_SECRET=${JWT_SECRET}
+      - JWT_EXPIRATION=${JWT_EXPIRATION:-24h}
+      - CORS_ORIGIN=${CORS_ORIGIN}
+
+      # ── Caddy Admin API ─────────────────────────────────────────────────────
+      # URL of the managed Caddy instance Admin API
+      - CADDY_SANDBOX_URL=http://caddy:2019
+
+      # ── Logging & Audit ─────────────────────────────────────────────────────
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+      - AUDIT_LOG_MAX_SIZE_MB=${AUDIT_LOG_MAX_SIZE_MB:-100}
+      - AUDIT_LOG_RETENTION_DAYS=${AUDIT_LOG_RETENTION_DAYS:-90}
+
+      # ── Health Checks ───────────────────────────────────────────────────────
+      - PING_INTERVAL=${PING_INTERVAL:-30000}
+      - PING_TIMEOUT=${PING_TIMEOUT:-2000}
+
+      # ── Metrics ─────────────────────────────────────────────────────────────
+      - METRICS_HISTORY_MAX=${METRICS_HISTORY_MAX:-1000}
+
+    depends_on:
+      - caddy
+
+    networks:
+      - caddy_net
+
+  # ── CaddyManager Frontend (Web UI) ─────────────────────────────────────────
+  caddymanager-frontend:
+    image: caddymanager/caddymanager-frontend:latest
+    container_name: caddymanager-frontend
+    restart: unless-stopped
+
+    ports:
+      - "${CADDYMANAGER_UI_PORT:-8080}:80"
+
+    environment:
+      # Internal backend service name (resolved inside docker network)
+      - BACKEND_HOST=caddymanager-backend:${BACKEND_PORT:-3000}
+      - APP_NAME=${APP_NAME:-Caddy Manager}
+      - DARK_MODE=${DARK_MODE:-true}
+
+    depends_on:
+      - caddymanager-backend
+
+    networks:
+      - caddy_net
+
+# ── Networks ───────────────────────────────────────────────────────────────────
+networks:
+  caddy_net:
+    driver: bridge
+
+# ── Volumes ────────────────────────────────────────────────────────────────────
+volumes:
+  caddy_data:
+    # Stores TLS certificates — NEVER delete this volume
+    name: caddy_data
+
+  caddy_config:
+    name: caddy_config
+
+  caddymanager_sqlite:
+    name: caddymanager_sqlite
