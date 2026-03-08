@@ -2,7 +2,7 @@
 # ARCANE - Docker Compose
 # Modern Docker Management UI
 # Image: ghcr.io/getarcaneapp/arcane
-# Port:  3552
+# Port:  ${APP_PORT:-3552}
 # ==============================================================================
 
 services:
@@ -12,11 +12,11 @@ services:
     restart: unless-stopped
 
     ports:
-      - "3552:3552"
+      - "${APP_PORT:-3552}:3552"
 
     volumes:
       # Podman rootless socket — mapped as Docker socket for Arcane compatibility.
-      # PODMAN_SOCK is resolved at runtime by start.sh into the .env file.
+      # PODMAN_SOCK is resolved at runtime by install.sh into the .env file.
       - ${PODMAN_SOCK}:/var/run/docker.sock:Z
       # Persistent application data (config, sessions, internal DB).
       # :Z applies the correct private SELinux label for Podman rootless.
@@ -25,9 +25,33 @@ services:
       - ./projects:/app/data/projects:Z
 
     environment:
+      # --- Core ---
       - APP_URL=${APP_URL}
       - PUID=${PUID}
       - PGID=${PGID}
       - ENCRYPTION_KEY=${ENCRYPTION_KEY}
       - JWT_SECRET=${JWT_SECRET}
-      - LOG_LEVEL=info
+
+      # --- Application ---
+      - ENVIRONMENT=${ENVIRONMENT:-production}
+      - GIN_MODE=${GIN_MODE:-release}
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+      - TZ=${TZ:-UTC}
+
+      # --- Database ---
+      - DATABASE_URL=${DATABASE_URL:-file:data/arcane.db?_pragma=journal_mode(WAL)&_pragma=busy_timeout(2500)&_txlock=immediate}
+      - ALLOW_DOWNGRADE=${ALLOW_DOWNGRADE:-false}
+
+      # --- Security ---
+      - JWT_REFRESH_EXPIRY=${JWT_REFRESH_EXPIRY:-168h}
+      - FILE_PERM=${FILE_PERM:-0644}
+      - DIR_PERM=${DIR_PERM:-0755}
+
+      # --- TLS (optional) ---
+      - TLS_ENABLED=${TLS_ENABLED:-false}
+      - TLS_CERT_FILE=${TLS_CERT_FILE:-}
+      - TLS_KEY_FILE=${TLS_KEY_FILE:-}
+
+      # --- Agent Mode (optional) ---
+      - AGENT_MODE=${AGENT_MODE:-false}
+      - AGENT_TOKEN=${AGENT_TOKEN:-}
