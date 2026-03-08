@@ -232,9 +232,19 @@ deploy_and_persist() {
     echo "Configuring systemd service for persistence..."
     mkdir -p ~/.config/systemd/user/
 
-    podman generate systemd --name arcane --files --new \
-        --restart-policy=always \
-        --dest ~/.config/systemd/user/
+    # Generate systemd unit in the current directory, then move it.
+    # Uses --new to recreate the container from the image on each service start.
+    # Compatible with Podman 4.x (no --dest or --restart-policy flags).
+    podman generate systemd --name arcane --files --new
+    mv -f container-arcane.service ~/.config/systemd/user/
+
+    # Ensure the service restarts on failure via systemd override
+    mkdir -p ~/.config/systemd/user/container-arcane.service.d
+    cat <<EOF > ~/.config/systemd/user/container-arcane.service.d/restart.conf
+[Service]
+Restart=always
+RestartSec=10
+EOF
 
     systemctl --user daemon-reload
     systemctl --user enable --now container-arcane.service
