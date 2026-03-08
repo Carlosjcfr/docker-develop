@@ -24,6 +24,18 @@ curl -fsSL "https://raw.githubusercontent.com/Carlosjcfr/docker-develop/main/pro
 
 > ⚠️ **Do NOT run with `sudo`.** The script must run as a normal user to maintain a rootless Podman environment. It will request `sudo` internally only when strictly needed.
 
+### Interactive mode
+
+When running manually (`bash install.sh`), the installer will ask:
+
+```
+Run in interactive mode? (customize all options) [y/N]:
+```
+
+- **Yes** → Guides you through each configurable option step by step.
+- **No / Enter** → Uses the values from `config.env` in the repository (default).
+- **Via `curl | bash`** → Interactive mode is skipped automatically.
+
 ## Configuration
 
 All configurable variables are defined in `config.env` **in the repository**.
@@ -39,8 +51,6 @@ are applied automatically on the next execution.
 | `GIN_MODE` | `release` | Framework mode |
 | `LOG_LEVEL` | `info` | Log level |
 | `TZ` | `Europe/Madrid` | Timezone |
-| `DATABASE_URL` | `file:data/arcane.db?...` | SQLite path and pragmas |
-| `ALLOW_DOWNGRADE` | `false` | Allow DB downgrades |
 | `JWT_REFRESH_EXPIRY` | `168h` | Refresh token expiry |
 | `FILE_PERM` | `0644` | File permissions |
 | `DIR_PERM` | `0755` | Directory permissions |

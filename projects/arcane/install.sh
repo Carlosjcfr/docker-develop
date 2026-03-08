@@ -48,7 +48,20 @@ curl -fsSL "$REPO_RAW/config.env"         -o "$TMP_DIR/config.env"
 curl -fsSL "$REPO_RAW/docker-compose.yml" -o "$TMP_DIR/docker-compose.yml"
 echo "Files downloaded."
 
-# --- 4. LOAD CONFIGURATION ---------------------------------------------------
+# --- 4. INTERACTIVE MODE (optional) ------------------------------------------
+# If stdin is a terminal (manual execution), offer interactive configuration.
+# If stdin is a pipe (curl | bash), skip silently and use repo defaults.
+if [ -t 0 ]; then
+    echo ""
+    read -rp "Run in interactive mode? (customize all options) [y/N]: " INTERACTIVE
+    if [[ "$INTERACTIVE" =~ ^[Yy]$ ]]; then
+        echo "Downloading interactive configurator..."
+        curl -fsSL "$REPO_RAW/configure.sh" -o "$TMP_DIR/configure.sh"
+        bash "$TMP_DIR/configure.sh" "$TMP_DIR/config.env"
+    fi
+fi
+
+# --- 5. LOAD CONFIGURATION ---------------------------------------------------
 # Source config.env to import user-defined variables (INSTALL_DIR, APP_PORT, etc.)
 # shellcheck source=/dev/null
 source "$TMP_DIR/config.env"
@@ -86,7 +99,7 @@ AGENT_TOKEN="${AGENT_TOKEN:-}"
 
 echo "Configuration loaded (INSTALL_DIR=$INSTALL_DIR, APP_PORT=$APP_PORT)."
 
-# --- 5. PREPARE INSTALL DIRECTORY --------------------------------------------
+# --- 6. PREPARE INSTALL DIRECTORY --------------------------------------------
 echo "Preparing installation directory: $INSTALL_DIR"
 mkdir -p "$INSTALL_DIR"
 
@@ -97,7 +110,7 @@ mv "$TMP_DIR/docker-compose.yml" "$INSTALL_DIR/docker-compose.yml"
 # Move into the install directory for the rest of the script
 cd "$INSTALL_DIR"
 
-# --- 6. HOST IP DETECTION ----------------------------------------------------
+# --- 7. HOST IP DETECTION ----------------------------------------------------
 # Use HOST_IP from config.env if provided, otherwise auto-detect.
 if [ -z "${HOST_IP:-}" ]; then
     INTERFACE=$(ip route | awk '/^default/ {print $5; exit}')
@@ -113,7 +126,7 @@ else
     echo "Host IP from config.env: $HOST_IP"
 fi
 
-# --- 7. CREDENTIAL MANAGEMENT ------------------------------------------------
+# --- 8. CREDENTIAL MANAGEMENT ------------------------------------------------
 # If .env already exists and contains ENCRYPTION_KEY, secrets are reused
 # to avoid breaking sessions on restarts.
 if [ -f .env ] && grep -q "^ENCRYPTION_KEY=" .env; then
@@ -131,7 +144,7 @@ else
     set -o pipefail
 fi
 
-# --- 8. UID/GID, LINGERING & PODMAN SOCKET ------------------------------------
+# --- 9. UID/GID, LINGERING & PODMAN SOCKET ------------------------------------
 PUID=$(id -u)
 PGID=$(id -g)
 USER_NAME=$(id -un)
@@ -158,7 +171,7 @@ if [ ! -S "$PODMAN_SOCK" ]; then
     echo "Podman socket ready."
 fi
 
-# --- 9. WRITE .env (restricted permissions 600) ------------------------------
+# --- 10. WRITE .env (restricted permissions 600) -----------------------------
 echo "Generating runtime .env file..."
 OLD_UMASK=$(umask)
 umask 177
@@ -208,7 +221,7 @@ EOF
 umask "$OLD_UMASK"
 echo ".env file ready (permissions 600)."
 
-# --- 10. PREPARE BIND-MOUNT DIRECTORIES --------------------------------------
+# --- 11. PREPARE BIND-MOUNT DIRECTORIES --------------------------------------
 # Directories must exist and be owned by the current user BEFORE podman-compose
 # starts. If Podman creates them, it does so as root, causing permission errors.
 echo "Preparing data directories..."
@@ -216,7 +229,7 @@ mkdir -p "${INSTALL_DIR}/data" "${INSTALL_DIR}/projects"
 sudo chown -R "${PUID}:${PGID}" "${INSTALL_DIR}/data" "${INSTALL_DIR}/projects"
 echo "Directories ready."
 
-# --- 11. DEPLOY & SYSTEMD PERSISTENCE ----------------------------------------
+# --- 12. DEPLOY & SYSTEMD PERSISTENCE ----------------------------------------
 echo "Starting services with podman-compose..."
 podman-compose up -d
 
