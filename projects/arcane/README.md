@@ -18,28 +18,44 @@ sudo mkdir -p /opt/arcane && sudo chown admin:admin /opt/arcane
 **2. Run the installer**
 
 ```bash
-curl -fsSL "https://raw.githubusercontent.com/Carlosjcfr/docker-develop/main/projects/arcane/install.sh" \
-  -o /tmp/install.sh && bash /tmp/install.sh
+curl -fsSL "https://raw.githubusercontent.com/Carlosjcfr/docker-develop/main/projects/arcane/arcane.sh" \
+  -o /tmp/arcane.sh && bash /tmp/arcane.sh
 ```
 
 > ⚠️ **Do NOT run with `sudo`.** The script must run as a normal user to maintain a rootless Podman environment. It will request `sudo` internally only when strictly needed.
 
+## Management
+
+When an existing installation is detected, `arcane.sh` shows a management menu:
+
+```
+ ARCANE - Management
+ Existing installation detected at /opt/arcane
+
+   1) Start      — Start the existing container
+   2) Update     — Download latest config and redeploy
+   3) Uninstall  — Remove container, service, and data
+   0) Cancel
+```
+
+- **Via `curl | bash`** with existing installation → runs Update automatically (no menu).
+- **Uninstall** requires typing `UNINSTALL` to confirm (double confirmation).
+
 ### Interactive mode
 
-When running manually (`bash install.sh`), the installer will ask:
+During Install or Update, if running from a terminal, the script will ask:
 
 ```
 Run in interactive mode? (customize all options) [y/N]:
 ```
 
 - **Yes** → Guides you through each configurable option step by step.
-- **No / Enter** → Uses the values from `config.env` in the repository (default).
-- **Via `curl | bash`** → Interactive mode is skipped automatically.
+- **No / Enter** → Uses the values from `config.env` in the repository.
 
 ## Configuration
 
 All configurable variables are defined in `config.env` **in the repository**.
-The installer downloads this file on every run, so changes pushed to GitHub
+The script downloads this file on every run, so changes pushed to GitHub
 are applied automatically on the next execution.
 
 | Variable | Default | Description |
@@ -61,11 +77,9 @@ are applied automatically on the next execution.
 
 ## Re-deploy / Update
 
-Re-running the installer is safe. It reuses existing secrets and downloads
-the latest `config.env` and `docker-compose.yml` from the repository.
-
 ```bash
-cd /opt/arcane && bash install.sh
+cd /opt/arcane && bash arcane.sh
+# Then select option 2) Update
 ```
 
 ## Useful commands
@@ -88,7 +102,7 @@ systemctl --user restart container-arcane.service
 ├── data/              → Arcane internal data (config, sessions)
 ├── projects/          → Docker Compose projects managed from the UI
 ├── .env               → Auto-generated runtime vars (do not edit)
-├── config.env         → Downloaded from repo on each run (do not edit locally)
+├── config.env         → Downloaded from repo on each run
 ├── docker-compose.yml → Downloaded from repo on each run
-└── install.sh         → Unified installer & deployment script
+└── arcane.sh          → Management script (install/start/update/uninstall)
 ```
