@@ -17,6 +17,7 @@ Actúa como experto DevOps. Crea los 4 ficheros para integrar este servicio en m
 3. **Secretos:** Nunca poner passwords fijos en `config.env`; se auto-generan vía bash y se leen del entorno.
 4. **Entregables:** Genera `docker-compose.yml`, `config.env`, `README.md` (formato "Cheat Sheet" minimalista de 30 líneas máximo), y el script orquestador `<slug>.sh`.
 5. **Etiquetas (Tags):** NUNCA inventes o deduzcas tags de imagen. Si dudas de la existencia exacta de un hash/etiqueta, usa `latest`. Tags falsos provocan descargas silently-failed y desencadenan estado de contenedor `missing`.
+6. **Macro-Services (Resolución Dinámica):** Para despliegues complejos compuestos por múltiples contenedores acoplados (ej: Supabase, Nextcloud), DEBES realizar una búsqueda web previa para localizar el `.env` o el `docker-compose.yml` oficial maestro de los fabricantes. Tras la investigación, **debes extraer las tags de las versiones probadas y declararlas explícitamente como variables en el `config.env`** generador, usándolas en tu `.yml` como `$MI_VERSION`. Así mantienes la coherencia de variables nativa del proyecto.
 
 **ESQUELETO OBLIGATORIO PARA `<slug>.sh`:**
 No inventes funciones. Limítate a rellenar este exacto molde (usando variables base como `$HOST_IP` y `$PUID`):
