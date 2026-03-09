@@ -76,6 +76,100 @@ EOF
     fi
 }
 
+deploy_and_persist() {
+    log "Starting services with podman-compose..."
+    cd "$INSTALL_DIR"
+    podman-compose up -d
+
+    verify_containers_running
+
+    log "Configuring systemd service for persistence..."
+    mkdir -p ~/.config/systemd/user/
+
+    cat <<EOF > ~/.config/systemd/user/container-supabase.service
+[Unit]
+Description=Supabase Stack (podman-compose)
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+WorkingDirectory=$INSTALL_DIR
+ExecStart=$(command -v podman-compose) up -d
+ExecStop=$(command -v podman-compose) down
+TimeoutStartSec=120
+TimeoutStopSec=30
+Restart=on-failure
+RestartSec=15
+
+[Install]
+WantedBy=default.target
+EOF
+
+    systemctl --user daemon-reload
+    systemctl --user enable --now container-supabase.service
+}
+
+print_success() {
+    echo ""
+    echo "================================================================="
+    echo " SUPABASE deployed and secured with systemd."
+    echo " Studio: http://$HOST_IP:$STUDIO_PORT"
+    echo " API:    http://$HOST_IP:$KONG_PORT"
+    echo " DB:     $HOST_IP:$POSTGRES_PORT"
+    echo ""
+    echo " The containers will persist after logout and on VM reboots."
+    echo "================================================================="
+}
+
+do_install() {
+    echo ""
+    echo "=== SUPABASE: Fresh Installation ==="
+    echo ""
+
+    download_repo_files "$REPO_RAW" config.env docker-compose.yml
+    offer_interactive_mode
+    load_configuration
+    detect_host_ip
+    setup_lingering_and_socket
+
+    mkdir -p "$INSTALL_DIR"
+    mv -f "$TMP_DIR/config.env" "$INSTALL_DIR/config.env"
+    mv -f "$TMP_DIR/docker-compose.yml" "$INSTALL_DIR/docker-compose.yml"
+
+    generate_runtime_env
+    deploy_and_persist
+    print_success
+}
+
+do_start() {
+    echo "=== SUPABASE: Starting ==="
+    systemctl --user start container-supabase.service
+    log "Supabase started successfully."
+}
+
+do_update() {
+    echo "=== SUPABASE: Updating ==="
+    download_repo_files "$REPO_RAW" config.env docker-compose.yml
+    offer_interactive_mode
+    load_configuration
+    detect_host_ip
+    setup_lingering_and_socket
+
+    mv -f "$TMP_DIR/config.env" "$INSTALL_DIR/config.env"
+    mv -f "$TMP_DIR/docker-compose.yml" "$INSTALL_DIR/docker-compose.yml"
+
+    generate_runtime_env
+
+    log "Pulling latest images..."
+    cd "$INSTALL_DIR"
+    podman-compose pull
+
+    deploy_and_persist
+    print_success
+}
+
 verify_containers_running() { 
     verify_containers_in_list "supabase-db" "supabase-studio" "supabase-kong" "supabase-auth" "supabase-rest" "supabase-realtime" "supabase-meta" "supabase-storage"
 }
@@ -91,6 +185,58 @@ do_uninstall() {
     uninstall_generic_service
 }
 
+check_existing_installation() {
+    local dir="${1:-/opt/supabase}"
+    if [ -f "$dir/.env" ] && podman container exists supabase-db 2>/dev/null; then
+        return 0
+    fi
+    return 1
+}
+
+# =============================================================================
+# MAIN
+# =============================================================================
 root_protection
 check_dependencies curl podman-compose
 parse_args "$@"
+
+if [ -n "$CMD_ACTION" ]; then
+    case "$CMD_ACTION" in
+        install)   do_install ;;
+        start)     do_start ;;
+        update)    do_update ;;
+        uninstall) do_uninstall ;;
+        *) err "Invalid action."; exit 1 ;;
+    esac
+    exit 0
+fi
+
+if check_existing_installation "/opt/supabase"; then
+    if [ -t 0 ] && [ "${FORCE_YES:-0}" -eq 0 ]; then
+        echo ""
+        echo "================================================================="
+        echo " SUPABASE — Management"
+        echo "================================================================="
+        echo " Existing installation detected at /opt/supabase"
+        echo ""
+        echo "   1) Start      — Start the existing container"
+        echo "   2) Update     — Download latest config and redeploy"
+        echo "   3) Uninstall  — Remove container, service, and data"
+        echo "   0) Cancel"
+        echo ""
+        read -rp " Select [0-3]: " ACTION
+
+        case "$ACTION" in
+            1) do_start ;;
+            2) do_update ;;
+            3) do_uninstall ;;
+            0) log "Cancelled."; exit 0 ;;
+            *) err "Invalid option."; exit 1 ;;
+        esac
+    else
+        log "Existing installation detected. Running update..."
+        do_update
+    fi
+else
+    do_install
+fi

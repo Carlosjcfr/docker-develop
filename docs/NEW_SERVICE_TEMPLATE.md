@@ -61,9 +61,61 @@ do_uninstall() {
     uninstall_generic_service
 }
 
+# -----------------------------------------------------------------------------
+# REQUIRED ACTIONS (Añade el bloque completo para install/start/update)
+# -----------------------------------------------------------------------------
+do_install() {
+    download_repo_files "$REPO_RAW" config.env docker-compose.yml
+    offer_interactive_mode; load_configuration; detect_host_ip
+    # manage_credentials "$INSTALL_DIR" MIVAR_SECRETA
+    setup_lingering_and_socket
+    
+    mkdir -p "$INSTALL_DIR"
+    mv -f "$TMP_DIR/config.env" "$INSTALL_DIR/config.env"
+    mv -f "$TMP_DIR/docker-compose.yml" "$INSTALL_DIR/docker-compose.yml"
+    
+    generate_runtime_env
+    # deploy_and_persist function must be implemented to launch podman-compose up -d and configure systemd
+}
+
+do_start() {
+    systemctl --user start container-<slug>.service
+}
+
+do_update() {
+    download_repo_files "$REPO_RAW" config.env docker-compose.yml
+    load_configuration; generate_runtime_env
+    cd "$INSTALL_DIR"; podman-compose pull
+    # deploy_and_persist
+}
+
+# -----------------------------------------------------------------------------
+# MAIN LOOP ENTRY POINT
+# -----------------------------------------------------------------------------
 root_protection
 check_dependencies curl podman-compose
 parse_args "$@"
+
+if [ -n "$CMD_ACTION" ]; then
+    case "$CMD_ACTION" in
+        install)   do_install ;;
+        start)     do_start ;;
+        update)    do_update ;;
+        uninstall) do_uninstall ;;
+        *) err "Invalid action."; exit 1 ;;
+    esac
+    exit 0
+fi
+
+if check_existing_installation "/opt/<slug>"; then
+    echo "1) Start 2) Update 3) Uninstall"
+    read -rp " Select [1-3]: " ACTION
+    case "$ACTION" in
+        1) do_start ;; 2) do_update ;; 3) do_uninstall ;; *) exit 0 ;;
+    esac
+else
+    do_install
+fi
 ```
 
 Por último, devuélveme la línea de registro exacta para copiar/pegar en mi menú `deploy.sh` bajo la sintaxis:
