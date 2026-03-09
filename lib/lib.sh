@@ -147,6 +147,32 @@ enable_privileged_ports() {
 }
 
 # =============================================================================
+# CLI ARGUMENTS
+# =============================================================================
+
+# Parse common CLI arguments for service scripts.
+# Usage: parse_args "$@"
+# Sets globals: CMD_ACTION, FORCE_YES, DRY_RUN
+parse_args() {
+    CMD_ACTION=""
+    FORCE_YES=0
+    DRY_RUN=0
+
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --install)   CMD_ACTION="install" ;;
+            --update)    CMD_ACTION="update" ;;
+            --uninstall) CMD_ACTION="uninstall" ;;
+            --start)     CMD_ACTION="start" ;;
+            --yes|-y)    FORCE_YES=1 ;;
+            --dry-run)   DRY_RUN=1 ; log "[DRY-RUN] mode enabled" ;;
+            *) err "Unknown argument: $1"; exit 1 ;;
+        esac
+        shift
+    done
+}
+
+# =============================================================================
 # FILE MANAGEMENT
 # =============================================================================
 
@@ -172,6 +198,9 @@ download_repo_files() {
 # Downloads and runs configure.sh, which edits $TMP_DIR/config.env.
 # Requires globals: REPO_RAW, TMP_DIR
 offer_interactive_mode() {
+    if [ "${FORCE_YES:-0}" -eq 1 ]; then
+        return
+    fi
     if [ -t 0 ]; then
         echo ""
         read -rp "Run in interactive mode? (customize all options) [y/N]: " INTERACTIVE

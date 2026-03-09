@@ -279,7 +279,11 @@ do_uninstall() {
     echo "   - Container images"
     echo ""
 
-    read -rp " Type 'UNINSTALL' to confirm: " CONFIRM
+    if [ "$FORCE_YES" -eq 1 ]; then
+        CONFIRM="UNINSTALL"
+    else
+        read -rp " Type 'UNINSTALL' to confirm: " CONFIRM
+    fi
     if [ "$CONFIRM" != "UNINSTALL" ]; then
         log "Uninstall cancelled."
         exit 0
@@ -306,7 +310,11 @@ do_uninstall() {
     echo "   - caddy_config        (runtime config)"
     echo "   - caddymanager_sqlite (CaddyManager database)"
     echo ""
-    read -rp " Delete ALL persistent volumes? (WARNING: TLS certs will be lost!) [y/N]: " DELETE_DATA
+    if [ "$FORCE_YES" -eq 1 ]; then
+        DELETE_DATA="y"
+    else
+        read -rp " Delete ALL persistent volumes? (WARNING: TLS certs will be lost!) [y/N]: " DELETE_DATA
+    fi
     if [[ "$DELETE_DATA" =~ ^[Yy]$ ]]; then
         log "Removing volumes..."
         podman volume rm caddy_data caddy_config caddymanager_sqlite 2>/dev/null || true
@@ -315,7 +323,11 @@ do_uninstall() {
         log "Volumes preserved."
     fi
 
-    read -rp " Delete configuration files ($INSTALL_DIR)? [y/N]: " DELETE_CONFIG
+    if [ "$FORCE_YES" -eq 1 ]; then
+        DELETE_CONFIG="y"
+    else
+        read -rp " Delete configuration files ($INSTALL_DIR)? [y/N]: " DELETE_CONFIG
+    fi
     if [[ "$DELETE_CONFIG" =~ ^[Yy]$ ]]; then
         rm -rf "${INSTALL_DIR:?}/.env" "${INSTALL_DIR:?}/config.env" \
                "${INSTALL_DIR:?}/docker-compose.yml" "${INSTALL_DIR:?}/site"
@@ -337,8 +349,21 @@ do_uninstall() {
 root_protection
 check_dependencies curl podman-compose
 
+parse_args "$@"
+
+if [ -n "$CMD_ACTION" ]; then
+    case "$CMD_ACTION" in
+        install)   do_install ;;
+        start)     do_start ;;
+        update)    do_update ;;
+        uninstall) do_uninstall ;;
+        *) err "Invalid action."; exit 1 ;;
+    esac
+    exit 0
+fi
+
 if check_existing_installation "/opt/caddy"; then
-    if [ -t 0 ]; then
+    if [ -t 0 ] && [ "$FORCE_YES" -eq 0 ]; then
         echo ""
         echo "================================================================="
         echo " CADDY PROXY + MANAGER — Management"
