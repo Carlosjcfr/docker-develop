@@ -264,6 +264,7 @@ do_update() {
 }
 
 do_uninstall() {
+    INSTALL_DIR="${INSTALL_DIR:-/opt/arcane}"
     UNINSTALL_SVC_NAME="ARCANE"
     UNINSTALL_SYSTEMD="container-arcane.service"
     UNINSTALL_CONTAINERS=("arcane")
