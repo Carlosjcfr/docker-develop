@@ -3,9 +3,9 @@
 # Reverse Proxy + Web Management UI
 #
 # Services:
-#   caddy            — Caddy reverse proxy (HTTP/HTTPS/HTTP3) on ports 80/443
-#   caddymanager-backend  — CaddyManager REST API (internal only)
-#   caddymanager-frontend — CaddyManager Web UI on port 8080
+#   caddy                   — Caddy reverse proxy (HTTP/HTTPS/HTTP3) on ports 80/443
+#   caddymanager-backend    — CaddyManager REST API (internal only)
+#   caddymanager-frontend   — CaddyManager Web UI on port ${CADDYMANAGER_UI_PORT}
 #
 # Docs:
 #   Caddy:        https://caddyserver.com/docs/running#docker-compose
@@ -18,7 +18,7 @@ services:
 
   # ── Caddy Reverse Proxy ────────────────────────────────────────────────────
   caddy:
-    image: caddy:${CADDY_VERSION:-2}
+    image: docker.io/lucaslorentz/caddy-docker-proxy:${CADDY_VERSION:-2.11-alpine}
     container_name: caddy
     restart: unless-stopped
 
@@ -28,8 +28,8 @@ services:
       - "443:443/udp" # HTTP/3 (QUIC)
 
     volumes:
-      # Caddyfile config directory — place your Caddyfile inside ./conf/
-      - ./conf:/etc/caddy:Z
+      # Caddyfile — mounted as a single file into the container
+      - ./Caddyfile:/etc/caddy/Caddyfile:Z
       # Static site files (optional — remove if not serving static content)
       - ./site:/srv:Z
       # Caddy TLS certificates and ACME state (must be persistent)
@@ -46,7 +46,7 @@ services:
 
   # ── CaddyManager Backend (API) ─────────────────────────────────────────────
   caddymanager-backend:
-    image: caddymanager/caddymanager-backend:latest
+    image: docker.io/caddymanager/caddymanager-backend:${PACKAGE_VERSION:-0.0.2}
     container_name: caddymanager-backend
     restart: unless-stopped
 
@@ -92,7 +92,7 @@ services:
 
   # ── CaddyManager Frontend (Web UI) ─────────────────────────────────────────
   caddymanager-frontend:
-    image: caddymanager/caddymanager-frontend:latest
+    image: docker.io/caddymanager/caddymanager-frontend:${PACKAGE_VERSION:-0.0.2}
     container_name: caddymanager-frontend
     restart: unless-stopped
 

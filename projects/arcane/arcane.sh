@@ -92,6 +92,7 @@ load_configuration() {
     # Apply defaults for any variable left empty or unset
     INSTALL_DIR="${INSTALL_DIR:-/opt/arcane}"
     APP_PORT="${APP_PORT:-3552}"
+    PACKAGE_VERSION="${PACKAGE_VERSION:-latest}"
     LOG_LEVEL="${LOG_LEVEL:-info}"
     ENVIRONMENT="${ENVIRONMENT:-production}"
     GIN_MODE="${GIN_MODE:-release}"
@@ -179,38 +180,39 @@ generate_runtime_env() {
 # =============================================================================
 
 # --- Core (auto-generated) ---
-HOST_IP=$HOST_IP
-PUID=$PUID
-PGID=$PGID
-APP_PORT=$APP_PORT
-APP_URL=http://$HOST_IP:$APP_PORT
-PODMAN_SOCK=$PODMAN_SOCK
-ENCRYPTION_KEY=$ENCRYPTION_KEY
-JWT_SECRET=$JWT_SECRET
+HOST_IP="$HOST_IP"
+PUID="$PUID"
+PGID="$PGID"
+APP_PORT="$APP_PORT"
+APP_URL="http://$HOST_IP:$APP_PORT"
+PODMAN_SOCK="$PODMAN_SOCK"
+ENCRYPTION_KEY="$ENCRYPTION_KEY"
+JWT_SECRET="$JWT_SECRET"
 
 # --- Application (from config.env) ---
-ENVIRONMENT=$ENVIRONMENT
-GIN_MODE=$GIN_MODE
-LOG_LEVEL=$LOG_LEVEL
-TZ=$TZ
+PACKAGE_VERSION="$PACKAGE_VERSION"
+ENVIRONMENT="$ENVIRONMENT"
+GIN_MODE="$GIN_MODE"
+LOG_LEVEL="$LOG_LEVEL"
+TZ="$TZ"
 
 # --- Database ---
-DATABASE_URL=$DATABASE_URL
-ALLOW_DOWNGRADE=$ALLOW_DOWNGRADE
+DATABASE_URL="$DATABASE_URL"
+ALLOW_DOWNGRADE="$ALLOW_DOWNGRADE"
 
 # --- Security ---
-JWT_REFRESH_EXPIRY=$JWT_REFRESH_EXPIRY
-FILE_PERM=$FILE_PERM
-DIR_PERM=$DIR_PERM
+JWT_REFRESH_EXPIRY="$JWT_REFRESH_EXPIRY"
+FILE_PERM="$FILE_PERM"
+DIR_PERM="$DIR_PERM"
 
 # --- TLS ---
-TLS_ENABLED=$TLS_ENABLED
-TLS_CERT_FILE=$TLS_CERT_FILE
-TLS_KEY_FILE=$TLS_KEY_FILE
+TLS_ENABLED="$TLS_ENABLED"
+TLS_CERT_FILE="$TLS_CERT_FILE"
+TLS_KEY_FILE="$TLS_KEY_FILE"
 
 # --- Agent ---
-AGENT_MODE=$AGENT_MODE
-AGENT_TOKEN=$AGENT_TOKEN
+AGENT_MODE="$AGENT_MODE"
+AGENT_TOKEN="$AGENT_TOKEN"
 EOF
 
     umask "$OLD_UMASK"
@@ -367,7 +369,7 @@ do_uninstall() {
     podman rm -f arcane 2>/dev/null || true
 
     echo "Removing Arcane image..."
-    podman rmi ghcr.io/getarcaneapp/arcane:latest 2>/dev/null || true
+    podman rmi "ghcr.io/getarcaneapp/arcane:${PACKAGE_VERSION:-latest}" 2>/dev/null || true
 
     # Ask about data removal
     echo ""
