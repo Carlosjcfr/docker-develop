@@ -109,9 +109,24 @@ while true; do
         description=$(registry_field "$entry" 4)
         endpoints=$(registry_field "$entry" 5)
 
+        if [ "$local_idx" -gt 1 ]; then
+            echo ""
+        fi
+
         if is_installed "$install_dir" "$container"; then
             endpoints_resolved="${endpoints//\{IP\}/$HOST_IP}"
-            printf "  %d) %-30s %s\n" "$local_idx" "$name" "$endpoints_resolved"
+            IFS=',' read -ra ENDPOINT_ARRAY <<< "$endpoints_resolved"
+            
+            # Print the first line (Service Name + First Endpoint)
+            printf "  %d) %-30s %s\n" "$local_idx" "$name" "${ENDPOINT_ARRAY[0]}"
+            
+            # Formateamos y alineamos los siguientes endpoints debajo
+            for (( i=1; i<${#ENDPOINT_ARRAY[@]}; i++ )); do
+                ep="${ENDPOINT_ARRAY[$i]}"
+                # Trim leading space
+                ep="${ep#"${ep%%[![:space:]]*}"}"
+                printf "      %-30s %s\n" "" "$ep"
+            done
         else
             status="[NOT INSTALLED]"
             printf "  %d) %-30s %s  %s\n" "$local_idx" "$name" "$status" "$description"
