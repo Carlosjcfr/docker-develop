@@ -10,17 +10,16 @@
 
 The current script (`caddy.sh`) is a solid baseline:
 
-- ✅ Single-command install via `curl | bash`
+- ✅ Single-command install via `curl | bash` (plus `deploy.sh` manager)
 - ✅ Idempotent (safe to re-run)
-- ✅ Fail-fast with specific exit codes
-- ✅ Secrets never committed to repo
-- ✅ Systemd persistence with rootless Podman
-- ⚠️ Interactive mode breaks unattended execution (CI/CD)
-- ⚠️ Configuration requires modifying a repo file (`config.env`)
-- ⚠️ No pre-flight checks before starting deployment
-- ⚠️ Post-deploy verification only checks container state, not service health
-- ⚠️ No rollback capability on failed updates
-- ⚠️ Each service has its own independent script — no shared foundation
+- ✅ Fail-fast with specific exit codes (standardized in `lib.sh`)
+- ✅ Secrets never committed to repo (protected by `lib.sh` guards)
+- ✅ Systemd persistence with rootless Podman (standardized pattern)
+- ✅ Support for unattended execution (CLI flags `--yes`, `--install`, etc.)
+- ✅ Configuration via environment variables and shared foundation (`lib.sh`)
+- ✅ Post-deploy verification including service health checks (`poll_http`)
+- ⚠️ Pre-flight checks before starting deployment (planned for Phase 4)
+- ⚠️ No rollback capability on failed updates (planned for Phase 5)
 
 ---
 
