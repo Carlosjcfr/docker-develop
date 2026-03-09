@@ -20,18 +20,21 @@ REPO_BASE="${REPO_BASE:-https://raw.githubusercontent.com/Carlosjcfr/docker-deve
 
 # =============================================================================
 # SERVICE REGISTRY
-# Format per entry: "Display Name|script_path|install_dir|main_container|description"
+# Format per entry: "Display Name|script_path|install_dir|main_container|description|endpoints"
 #
 #   Display Name:    Text shown in the menu
 #   script_path:     Path relative to REPO_BASE to download and execute
 #   install_dir:     Directory checked to detect an existing installation
 #   main_container:  Podman container name used as the existence probe
 #   description:     Short one-line description shown next to the service name
+#   endpoints:       Service endpoints format. Use {IP} placeholder for host IP
 # =============================================================================
 
+HOST_IP=$(hostname -I | awk '{print $1}')
+
 REGISTRY=(
-    "Caddy Proxy + Manager|projects/caddy-proxy-manager/caddy.sh|/opt/caddy|caddy|Reverse proxy with TLS + web management UI (ports 80, 443, 8080)"
-    "Arcane|projects/arcane/arcane.sh|/opt/arcane|arcane|Container management UI (port 3552)"
+    "Caddy Proxy + Manager|projects/caddy-proxy-manager/caddy.sh|/opt/caddy|caddy|Reverse proxy with TLS + web management UI|Proxy: {IP}:80 / {IP}:443, Manager: {IP}:8080"
+    "Arcane|projects/arcane/arcane.sh|/opt/arcane|arcane|Container management UI|UI: {IP}:3552"
 )
 
 # =============================================================================
@@ -104,14 +107,16 @@ while true; do
         install_dir=$(registry_field "$entry" 2)
         container=$(registry_field "$entry" 3)
         description=$(registry_field "$entry" 4)
+        endpoints=$(registry_field "$entry" 5)
 
         if is_installed "$install_dir" "$container"; then
-            status="[INSTALLED]    "
+            endpoints_resolved="${endpoints//\{IP\}/$HOST_IP}"
+            printf "  %d) %-30s %s\n" "$local_idx" "$name" "$endpoints_resolved"
         else
             status="[NOT INSTALLED]"
+            printf "  %d) %-30s %s  %s\n" "$local_idx" "$name" "$status" "$description"
         fi
 
-        printf "  %d) %-30s %s  %s\n" "$local_idx" "$name" "$status" "$description"
         STATUS_MAP[$local_idx]="$entry"
     done
 
