@@ -139,8 +139,7 @@ do_update() {
     mv -f "$TMP_DIR/docker-compose.yml" "$INSTALL_DIR/docker-compose.yml"
     
     generate_runtime_env
-    cd "$INSTALL_DIR"
-    podman-compose --quiet pull > /dev/null 2>&1 || true
+    cd "$INSTALL_DIR"; podman-compose pull
     deploy_and_persist
     print_success
 }
