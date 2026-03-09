@@ -272,6 +272,7 @@ do_update() {
 }
 
 do_uninstall() {
+    INSTALL_DIR="${INSTALL_DIR:-/opt/caddy}"
     UNINSTALL_SVC_NAME="CADDY"
     UNINSTALL_SYSTEMD="caddy-compose.service"
     UNINSTALL_CONTAINERS=("caddy" "caddymanager-backend" "caddymanager-frontend")

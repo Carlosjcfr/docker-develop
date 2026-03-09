@@ -12,6 +12,10 @@
 #   UNINSTALL_DIRS          (array)  e.g. ("/opt/arcane/data")
 #   UNINSTALL_DATA_WARN     (string) e.g. "WARNING: All arcane projects will be lost!"
 uninstall_generic_service() {
+    # Default arrays to empty if they are not defined by the caller, to avoid set -u crashes
+    local -a local_volumes=("${UNINSTALL_VOLUMES[@]:-}")
+    local -a local_dirs=("${UNINSTALL_DIRS[@]:-}")
+    
     echo ""
     echo "=== ${UNINSTALL_SVC_NAME}: Uninstall ==="
     echo ""
@@ -51,13 +55,13 @@ uninstall_generic_service() {
     if [ "$FORCE_YES" -eq 1 ]; then
         DELETE_DATA="y"
     else
-        if [ ${#UNINSTALL_VOLUMES[@]} -gt 0 ]; then
+        if [ ${#local_volumes[@]} -gt 0 ] && [ -n "${local_volumes[0]:-}" ]; then
             echo " Persistent volumes connected to this service:"
-            for v in "${UNINSTALL_VOLUMES[@]}"; do echo "   - $v"; done
+            for v in "${local_volumes[@]}"; do [ -n "$v" ] && echo "   - $v"; done
         fi
-        if [ ${#UNINSTALL_DIRS[@]} -gt 0 ]; then
+        if [ ${#local_dirs[@]} -gt 0 ] && [ -n "${local_dirs[0]:-}" ]; then
             echo " Data directories connected to this service:"
-            for d in "${UNINSTALL_DIRS[@]}"; do echo "   - $d"; done
+            for d in "${local_dirs[@]}"; do [ -n "$d" ] && echo "   - $d"; done
         fi
         [ -n "${UNINSTALL_DATA_WARN:-}" ] && echo " $UNINSTALL_DATA_WARN"
         echo ""
@@ -66,16 +70,16 @@ uninstall_generic_service() {
 
     if [[ "$DELETE_DATA" =~ ^[Yy]$ ]]; then
         log "Removing configuration, data, and installation directory..."
-        if [ ${#UNINSTALL_VOLUMES[@]} -gt 0 ]; then
-            for v in "${UNINSTALL_VOLUMES[@]}"; do podman volume rm "$v" 2>/dev/null || true; done
+        if [ ${#local_volumes[@]} -gt 0 ] && [ -n "${local_volumes[0]:-}" ]; then
+            for v in "${local_volumes[@]}"; do [ -n "$v" ] && podman volume rm "$v" 2>/dev/null || true; done
         fi
-        if [ ${#UNINSTALL_DIRS[@]} -gt 0 ]; then
-            for d in "${UNINSTALL_DIRS[@]}"; do rm -rf "$d"; done
+        if [ ${#local_dirs[@]} -gt 0 ] && [ -n "${local_dirs[0]:-}" ]; then
+            for d in "${local_dirs[@]}"; do [ -n "$d" ] && rm -rf "$d"; done
         fi
         rm -rf "${INSTALL_DIR:?}"
         log "All data and directory removed."
     else
-        if [ ${#UNINSTALL_VOLUMES[@]} -gt 0 ] || [ ${#UNINSTALL_DIRS[@]} -gt 0 ]; then
+        if [ ${#local_volumes[@]} -gt 0 ] && [ -n "${local_volumes[0]:-}" ] || [ ${#local_dirs[@]} -gt 0 ] && [ -n "${local_dirs[0]:-}" ]; then
             log "Data preserved."
         fi
         rm -f "${INSTALL_DIR:?}/.env" "${INSTALL_DIR:?}/config.env" "${INSTALL_DIR:?}/docker-compose.yml"
