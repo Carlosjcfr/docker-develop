@@ -1,1 +1,254 @@
 # docker-develop
+
+> Rootless Podman service installation framework for Proxmox VMs.
+> Emphasis on **cybersecurity**, **correct permissions**, and **proactive error diagnosis**.
+
+---
+
+## Quick Start
+
+Install any service with a single command — no prerequisites, no configuration files to edit:
+
+```bash
+curl -fsSL "https://raw.githubusercontent.com/Carlosjcfr/docker-develop/main/deploy.sh" | bash
+```
+
+This opens an interactive menu listing all available services and their current installation status.
+
+---
+
+## How It Works
+
+The framework is organized in three layers:
+
+```
+deploy.sh              ← Universal entry point: service selection menu
+    │
+    └── lib/lib.sh     ← Shared foundation: security, permissions, diagnostics
+           │
+           ├── projects/caddy-proxy-manager/caddy.sh   ← Caddy + Manager
+           └── projects/arcane/arcane.sh               ← Arcane
+```
+
+### Layer 1 — `deploy.sh` (Service Manager)
+
+Running `deploy.sh` presents a menu of all available services along with their
+installation status:
+
+```
+═══════════════════════════════════════════════════════════════════
+  SERVICE MANAGER
+  Repository: github.com/Carlosjcfr/docker-develop
+═══════════════════════════════════════════════════════════════════
+
+  1) Caddy Proxy + Manager    [INSTALLED]      Reverse proxy with TLS + web UI
+  2) Arcane                   [NOT INSTALLED]  Container management UI (port 3552)
+
+  0) Exit
+
+═══════════════════════════════════════════════════════════════════
+```
+
+Selecting a service downloads its script and presents the service management menu:
+
+```
+  1) Install      2) Start      3) Update      4) Uninstall      0) Cancel
+```
+
+`deploy.sh` is a pure **dispatcher** — it contains no service-specific logic.
+Adding a new service requires only one line in the `REGISTRY` array.
+
+### Layer 2 — `lib/lib.sh` (Shared Library)
+
+All service scripts source this library at startup. It provides:
+
+| Category | Functions |
+|---|---|
+| **Logging** | `log()`, `warn()`, `err()` — timestamped, stderr-aware |
+| **Security guards** | `root_protection()`, `check_secrets_not_in_config()` |
+| **Permission guards** | `check_install_dir_writable()` — exit 2 if /opt not prepared |
+| **Podman bootstrap** | `setup_lingering_and_socket()`, `enable_privileged_ports()` |
+| **File management** | `download_repo_files()`, `offer_interactive_mode()` |
+| **Configuration** | `detect_host_ip()`, `manage_credentials()` |
+| **Deployment validation** | `verify_containers_running()` — exit 3 if containers fail |
+| **HTTP health checks** | `poll_http()`, `check_http_health()` |
+
+### Layer 3 — Service scripts
+
+Each service script contains only its own logic: configuration variables,
+`.env` template, directory setup, systemd unit, and action functions
+(install / start / update / uninstall). Typically ~200 lines.
+
+---
+
+## Available Services
+
+| Service | Port(s) | Install dir | Script |
+|---|---|---|---|
+| **Caddy Proxy + Manager** | 80, 443, 8080 | `/opt/caddy` | `projects/caddy-proxy-manager/caddy.sh` |
+| **Arcane** | 3552 | `/opt/arcane` | `projects/arcane/arcane.sh` |
+
+---
+
+## Prerequisites
+
+Run these commands **on the target VM** before running any service script.
+Only needed if `/opt` is root-owned (default on most Linux distributions):
+
+```bash
+# For Caddy
+sudo mkdir -p /opt/caddy && sudo chown $USER:$USER /opt/caddy
+
+# For Arcane
+sudo mkdir -p /opt/arcane && sudo chown $USER:$USER /opt/arcane
+```
+
+> If you skip this step, the script will detect it and abort with `exit code 2`
+> and a clear instruction showing exactly what to run.
+
+### System requirements
+
+| Requirement | Why |
+|---|---|
+| Podman ≥ 4.x | Container runtime (rootless) |
+| `podman-compose` | Multi-container stack management |
+| `curl` | Downloads scripts and images |
+| `sudo` access | Required for: `sysctl` (port binding) + `loginctl enable-linger` |
+
+---
+
+## Direct Service Install (without deploy.sh)
+
+If you prefer to install a specific service directly:
+
+```bash
+# Caddy Proxy + Manager
+curl -fsSL "https://raw.githubusercontent.com/Carlosjcfr/docker-develop/caddy-manager-proxy/projects/caddy-proxy-manager/caddy.sh" \
+  -o /tmp/caddy.sh && bash /tmp/caddy.sh
+
+# Arcane
+curl -fsSL "https://raw.githubusercontent.com/Carlosjcfr/docker-develop/main/projects/arcane/arcane.sh" \
+  -o /tmp/arcane.sh && bash /tmp/arcane.sh
+```
+
+Re-running the script on an already-installed service shows the management menu
+(start / update / uninstall) instead of reinstalling.
+
+---
+
+## Security Design
+
+| Decision | Detail |
+|---|---|
+| Scripts must NOT run as root | Preserves Podman rootless isolation |
+| Secrets never committed to repo | `JWT_SECRET`, `ENCRYPTION_KEY` auto-generated at first install |
+| Runtime `.env` hardened | Written with `umask 177` → permissions `600` |
+| `sudo` used only where necessary | `sysctl` for privileged ports + `loginctl enable-linger` |
+| Fully qualified image names | All images prefixed with `docker.io/` or `ghcr.io/` — required for Podman on systems without `unqualified-search-registries` |
+| SELinux volume labels | All bind mounts use `:Z` flag for correct SELinux relabeling |
+
+---
+
+## Exit Code Reference
+
+| Code | Meaning | How to resolve |
+|---|---|---|
+| `0` | Success or deliberate cancellation | — |
+| `1` | Guard failure (root exec, missing dependency, secret in repo) | Read the error message |
+| `2` | Install directory not writable | Run the prerequisite `sudo mkdir + chown` shown in the error |
+| `3` | Containers did not start after deploy | Run the diagnostic commands shown in the error |
+
+---
+
+## Podman vs Docker — Key Differences
+
+These are the most common failure causes when coming from a Docker / WSL environment:
+
+| Issue | Docker | Podman on Linux VM | Fix applied |
+|---|---|---|---|
+| Short image names | Resolved via Docker Hub implicitly | Fails if no `unqualified-search-registries` in `/etc/containers/registries.conf` | All images prefixed with `docker.io/` or `ghcr.io/` |
+| `podman-compose up -d` exit code | Non-zero on failure | **Always 0**, even if all containers fail | `verify_containers_running()` post-check in lib.sh |
+| Ports 80/443 | Docker daemon binds them | Blocked by kernel for rootless users | `sysctl net.ipv4.ip_unprivileged_port_start=0` |
+| Session persistence | Docker daemon always running | Session ends on SSH logout | `loginctl enable-linger` |
+
+---
+
+## Customising a Service
+
+All user-facing settings are in each service's `config.env` (committed to the repo).
+Secrets are **never** in `config.env` — they are auto-generated on first install.
+
+To customise before installing, run the script in interactive mode:
+
+```
+Run in interactive mode? (customize all options) [y/N]: y
+```
+
+Alternatively, override settings via environment variables — no file editing needed:
+
+```bash
+CADDYMANAGER_UI_PORT=9090 ACME_EMAIL=ops@example.com bash /tmp/caddy.sh
+```
+
+---
+
+## Repository Structure
+
+```
+docker-develop/
+├── deploy.sh                           ← Universal service manager entry point
+├── lib/
+│   └── lib.sh                          ← Shared function library (sourced by all scripts)
+├── projects/
+│   ├── caddy-proxy-manager/
+│   │   ├── caddy.sh                    ← Service script
+│   │   ├── docker-compose.yml
+│   │   ├── config.env                  ← User-facing defaults (no secrets)
+│   │   ├── Caddyfile                   ← Default Caddy config (preserved on updates)
+│   │   ├── SCRIPT_ARCHITECTURE.md     ← Architecture reference for this script
+│   │   └── README.md
+│   └── arcane/
+│       ├── arcane.sh                   ← Service script
+│       ├── docker-compose.yml
+│       ├── config.env
+│       └── README.md
+└── docs/
+    ├── ROADMAP.md                      ← Improvement roadmap (Tier 1, 2, 3)
+    ├── FEATURES_ROADMAP.md             ← Feature list by area and status
+    ├── TIER3_ORCHESTRATION_PLAN.md     ← lib.sh / deploy.sh / CI design plan
+    └── SCRIPT_ARCHITECTURE.md         ← Template for creating new service scripts
+```
+
+---
+
+## Adding a New Service
+
+1. Create `projects/<service-name>/` with: `<service>.sh`, `docker-compose.yml`, `config.env`
+2. Model `<service>.sh` on an existing script — see `docs/SCRIPT_ARCHITECTURE.md` for the checklist
+3. Add one line to the `REGISTRY` array in `deploy.sh`:
+   ```bash
+   "My Service|projects/my-service/my-service.sh|/opt/my-service|my-container|Short description"
+   ```
+4. The service appears automatically in the `deploy.sh` menu on the next run
+
+---
+
+## Useful Commands (on the server)
+
+```bash
+# Show status of all user services
+systemctl --user list-units --type=service
+
+# Caddy
+systemctl --user status caddy-compose.service
+podman logs -f caddy
+systemctl --user restart caddy-compose.service
+
+# Arcane
+systemctl --user status container-arcane.service
+podman logs -f arcane
+systemctl --user restart container-arcane.service
+
+# All running containers
+podman ps
+```
