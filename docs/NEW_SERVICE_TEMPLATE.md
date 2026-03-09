@@ -11,6 +11,7 @@ Actúa como experto DevOps. Crea los 4 ficheros para integrar este servicio en m
 **[IMAGEN]:** <url_imagen_fqdn> (DEBE empezar por docker.io/ o ghcr.io/)
 
 **REGLAS ESTRICTAS:**
+
 1. **Rootless:** Cero referencias a `sudo` o ejecución como root.
 2. **SELinux:** Todo mapeo de carpetas/volúmenes en `docker-compose.yml` debe terminar en `:Z`.
 3. **Secretos:** Nunca poner passwords fijos en `config.env`; se auto-generan vía bash y se leen del entorno.
@@ -46,10 +47,6 @@ EOF
     umask "$OLD_UMASK"
 }
 
-verify_containers_running() { 
-    verify_containers_in_list "<main_container>" 
-}
-
 do_uninstall() {
     INSTALL_DIR="${INSTALL_DIR:-/opt/<slug>}"
     UNINSTALL_SVC_NAME="<NAME>"
@@ -73,7 +70,7 @@ deploy_and_persist() {
     log "Starting services with podman-compose..."
     cd "$INSTALL_DIR"
     podman-compose up -d
-    verify_containers_running
+    verify_containers_running <tus_contenedores_aqui>
     
     log "Configuring systemd service for persistence..."
     mkdir -p ~/.config/systemd/user/
@@ -176,4 +173,5 @@ fi
 
 Por último, devuélveme la línea de registro exacta para copiar/pegar en mi menú `deploy.sh` bajo la sintaxis completa de 6 campos (incluyendo el endpoint dinámico `{IP}`):
 `"Nombre|projects/<slug>/<slug>.sh|/opt/<slug>|<main_container>|Descripción breve|Servicio: {IP}:<PORT>"`
+
 ---

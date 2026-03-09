@@ -81,7 +81,7 @@ deploy_and_persist() {
     cd "$INSTALL_DIR"
     podman-compose up -d
 
-    verify_containers_running
+    verify_containers_running "supabase-db" "supabase-studio" "supabase-kong" "supabase-auth" "supabase-rest" "supabase-realtime" "supabase-meta" "supabase-storage"
 
     log "Configuring systemd service for persistence..."
     mkdir -p ~/.config/systemd/user/
@@ -169,10 +169,6 @@ do_update() {
 
     deploy_and_persist
     print_success
-}
-
-verify_containers_running() { 
-    verify_containers_in_list "supabase-db" "supabase-studio" "supabase-kong" "supabase-auth" "supabase-rest" "supabase-realtime" "supabase-meta" "supabase-storage"
 }
 
 do_uninstall() {
