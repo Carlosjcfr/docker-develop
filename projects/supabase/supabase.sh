@@ -89,7 +89,7 @@ deploy_and_persist() {
         if [[ "$FIX_TAGS" =~ ^[Yy]$ ]]; then
             log "Parcheando tags a 'latest' en docker-compose.yml..."
             sed -i '/^[[:space:]]*image:/s/:[^:/]*$/:latest/' "$INSTALL_DIR/docker-compose.yml"
-            podman-compose pull || err "Fallo crítico repetido al probar con latest."
+            podman-compose pull || { err "Fallo crítico repetido al probar con latest."; exit 1; }
         else
             err "Lanza la actualización manualmente para depurar el error."
             exit 1
