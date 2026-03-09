@@ -53,7 +53,15 @@ do_uninstall() {
     UNINSTALL_SVC_NAME="<NAME>"
     UNINSTALL_SYSTEMD="container-<slug>.service" 
     UNINSTALL_CONTAINERS=("<main_container>")
-    UNINSTALL_IMAGES=("<fqdn_imagen_exacta>")
+    
+    if [ -f "$INSTALL_DIR/docker-compose.yml" ]; then
+        cd "$INSTALL_DIR"
+        UNINSTALL_IMAGES=($(podman-compose config -q | grep 'image:' | awk '{print $2}' || true))
+        cd - >/dev/null
+    else
+        UNINSTALL_IMAGES=("<fqdn_imagen_exacta>")
+    fi
+    
     UNINSTALL_VOLUMES=("<array_volumenes_persistentes>")
     UNINSTALL_DIRS=()
     uninstall_generic_service
@@ -70,9 +78,16 @@ check_existing_installation() {
 deploy_and_persist() {
     log "Starting services with podman-compose..."
     cd "$INSTALL_DIR"
-    podman-compose --quiet pull > /dev/null 2>&1 || true
+    
+    podman-compose config -q || err "Sintaxis de docker-compose invalida. Abortando instalación."
+    
+    log "Extrayendo imágenes de contenedor... (Los detalles se guardan en install.log)"
+    podman-compose pull > "$INSTALL_DIR/install.log" 2>&1 || true
+    
     podman-compose up -d
     verify_containers_running <tus_contenedores_aqui>
+    
+    rm -f "$INSTALL_DIR"/*.bak 2>/dev/null || true
     
     log "Configuring systemd service for persistence..."
     mkdir -p ~/.config/systemd/user/
@@ -135,11 +150,14 @@ do_update() {
     offer_interactive_mode; load_configuration; detect_host_ip
     setup_lingering_and_socket
     
+    generate_runtime_env
+    
+    cp "$INSTALL_DIR/config.env" "$INSTALL_DIR/config.env.bak" 2>/dev/null || true
+    cp "$INSTALL_DIR/docker-compose.yml" "$INSTALL_DIR/docker-compose.yml.bak" 2>/dev/null || true
+    
     mv -f "$TMP_DIR/config.env" "$INSTALL_DIR/config.env"
     mv -f "$TMP_DIR/docker-compose.yml" "$INSTALL_DIR/docker-compose.yml"
     
-    generate_runtime_env
-    cd "$INSTALL_DIR"; podman-compose pull
     deploy_and_persist
     print_success
 }
