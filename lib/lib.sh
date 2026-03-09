@@ -452,15 +452,15 @@ uninstall_generic_service() {
             for v in "${UNINSTALL_VOLUMES[@]}"; do podman volume rm "$v" 2>/dev/null || true; done
         fi
         if [ ${#UNINSTALL_DIRS[@]} -gt 0 ]; then
-            for d in "${UNINSTALL_DIRS[@]}"; do rm -rf "$d"; done
+            for d in "${UNINSTALL_DIRS[@]}"; do sudo rm -rf "$d"; done
         fi
-        rm -rf "${INSTALL_DIR:?}"
+        sudo rm -rf "${INSTALL_DIR:?}"
         log "All data and directory removed."
     else
         if [ ${#UNINSTALL_VOLUMES[@]} -gt 0 ] || [ ${#UNINSTALL_DIRS[@]} -gt 0 ]; then
             log "Data preserved."
         fi
-        rm -f "${INSTALL_DIR:?}/.env" "${INSTALL_DIR:?}/config.env" "${INSTALL_DIR:?}/docker-compose.yml"
+        sudo rm -f "${INSTALL_DIR:?}/.env" "${INSTALL_DIR:?}/config.env" "${INSTALL_DIR:?}/docker-compose.yml"
         log "Config files cleaned up, but installation directory ($INSTALL_DIR) preserved."
     fi
 
