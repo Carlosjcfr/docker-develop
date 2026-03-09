@@ -77,20 +77,25 @@ check_secrets_not_in_config() {
 # Usage: check_install_dir_writable DIR
 check_install_dir_writable() {
     local dir="${1:?check_install_dir_writable requires a directory argument}"
+    
+    # Intenta crear como usuario normal. Si falla o no es escribible, escalamos a sudo.
     if ! mkdir -p "$dir" 2>/dev/null || ! [ -w "$dir" ]; then
-        echo ""
-        echo "-----------------------------------------------------------------"
-        echo " ERROR [exit 2]: INSTALLATION DIRECTORY NOT WRITABLE"
-        echo "-----------------------------------------------------------------"
-        echo " Cannot write to: $dir"
-        echo ""
-        echo " REQUIRED PREREQUISITE STEP (run this first, then retry):"
-        echo ""
-        echo "   sudo mkdir -p $dir && sudo chown \$USER:\$USER $dir"
-        echo ""
-        echo " This step is necessary when /opt is owned by root."
-        echo "-----------------------------------------------------------------"
-        exit 2
+        log "Install directory '$dir' needs elevated permissions to be created."
+        log "Attempting to create it automatically using 'sudo'..."
+        
+        if sudo mkdir -p "$dir" && sudo chown -R "$USER:$USER" "$dir"; then
+            log "Directory '$dir' prepared and ownership assigned to $USER."
+        else
+            echo ""
+            echo "-----------------------------------------------------------------"
+            echo " ERROR [exit 2]: FAILED TO PREPARE INSTALLATION DIRECTORY"
+            echo "-----------------------------------------------------------------"
+            echo " The script tried to run 'sudo mkdir -p $dir' but failed."
+            echo " Please create it manually and assign ownership to $USER:"
+            echo "   sudo mkdir -p $dir && sudo chown \$USER:\$USER $dir"
+            echo "-----------------------------------------------------------------"
+            exit 2
+        fi
     fi
 }
 
