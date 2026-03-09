@@ -28,6 +28,8 @@ services:
       - "443:443/udp" # HTTP/3 (QUIC)
 
     volumes:
+      # Podman rootless socket for caddy-docker-proxy auto-discovery
+      - ${PODMAN_SOCK}:/var/run/docker.sock:Z
       # Caddyfile — mounted as a single file into the container
       - ./Caddyfile:/etc/caddy/Caddyfile:Z
       # Static site files (optional — remove if not serving static content)

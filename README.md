@@ -11,6 +11,9 @@ Install any service with a single command — no prerequisites, no configuration
 
 ```bash
 curl -fsSL "https://raw.githubusercontent.com/Carlosjcfr/docker-develop/main/deploy.sh" | bash
+
+# To test a specific branch (e.g. 'dev-branch'):
+# curl -fsSL "https://raw.githubusercontent.com/Carlosjcfr/docker-develop/dev-branch/deploy.sh" | GIT_BRANCH=dev-branch bash
 ```
 
 This opens an interactive menu listing all available services and their current installation status.
@@ -92,20 +95,6 @@ Each service script contains only its own logic: configuration variables,
 
 ## Prerequisites
 
-Run these commands **on the target VM** before running any service script.
-Only needed if `/opt` is root-owned (default on most Linux distributions):
-
-```bash
-# For Caddy
-sudo mkdir -p /opt/caddy && sudo chown $USER:$USER /opt/caddy
-
-# For Arcane
-sudo mkdir -p /opt/arcane && sudo chown $USER:$USER /opt/arcane
-```
-
-> If you skip this step, the script will detect it and abort with `exit code 2`
-> and a clear instruction showing exactly what to run.
-
 ### System requirements
 
 | Requirement | Why |
@@ -123,12 +112,10 @@ If you prefer to install a specific service directly:
 
 ```bash
 # Caddy Proxy + Manager
-curl -fsSL "https://raw.githubusercontent.com/Carlosjcfr/docker-develop/caddy-manager-proxy/projects/caddy-proxy-manager/caddy.sh" \
-  -o /tmp/caddy.sh && bash /tmp/caddy.sh
+curl -fsSL "https://raw.githubusercontent.com/Carlosjcfr/docker-develop/main/projects/caddy-proxy-manager/caddy.sh" | bash
 
 # Arcane
-curl -fsSL "https://raw.githubusercontent.com/Carlosjcfr/docker-develop/main/projects/arcane/arcane.sh" \
-  -o /tmp/arcane.sh && bash /tmp/arcane.sh
+curl -fsSL "https://raw.githubusercontent.com/Carlosjcfr/docker-develop/main/projects/arcane/arcane.sh" | bash
 ```
 
 Re-running the script on an already-installed service shows the management menu
@@ -143,7 +130,7 @@ Re-running the script on an already-installed service shows the management menu
 | Scripts must NOT run as root | Preserves Podman rootless isolation |
 | Secrets never committed to repo | `JWT_SECRET`, `ENCRYPTION_KEY` auto-generated at first install |
 | Runtime `.env` hardened | Written with `umask 177` → permissions `600` |
-| `sudo` used only where necessary | `sysctl` for privileged ports + `loginctl enable-linger` |
+| `sudo` used only where necessary | Preparing `/opt` directories instantly, `sysctl` for privileged ports, `loginctl enable-linger` |
 | Fully qualified image names | All images prefixed with `docker.io/` or `ghcr.io/` — required for Podman on systems without `unqualified-search-registries` |
 | SELinux volume labels | All bind mounts use `:Z` flag for correct SELinux relabeling |
 
@@ -155,7 +142,7 @@ Re-running the script on an already-installed service shows the management menu
 |---|---|---|
 | `0` | Success or deliberate cancellation | — |
 | `1` | Guard failure (root exec, missing dependency, secret in repo) | Read the error message |
-| `2` | Install directory not writable | Run the prerequisite `sudo mkdir + chown` shown in the error |
+| `2` | Install directory not writable, and automatic sudo creation failed | Check `sudo` logs or create manually |
 | `3` | Containers did not start after deploy | Run the diagnostic commands shown in the error |
 
 ---
@@ -187,7 +174,14 @@ Run in interactive mode? (customize all options) [y/N]: y
 Alternatively, override settings via environment variables — no file editing needed:
 
 ```bash
-CADDYMANAGER_UI_PORT=9090 ACME_EMAIL=ops@example.com bash /tmp/caddy.sh
+CADDYMANAGER_UI_PORT=9090 ACME_EMAIL=ops@example.com bash caddy.sh --install
+```
+
+### Developing and Testing Branches
+The scripts dynamically map repositories. To test your branch without merging to `main`, use the `GIT_BRANCH` variable. Pass it explicitly to `bash` when piping:
+
+```bash
+curl -fsSL "https://raw.githubusercontent.com/.../my-branch/deploy.sh" | GIT_BRANCH=my-branch bash
 ```
 
 ---
