@@ -65,6 +65,12 @@ The framework has completed its initial architecture phase. Key features impleme
 - **The Problem**: A mid-update failure or interruption can leave the installation directory in a partial, broken state.
 - **The Solution**: Download new files with a `.new` suffix, validate their syntax, and perform atomic `mv` operations only once the script is ready for the restart.
 
+#### 📋 4.4 Optimización de Salida de Podman (Silent Pulls)
+
+- **The Problem**: Imágenes compuestas por cientos de capas (como Supabase Postgres) inundan la salida de la terminal con mensajes "skipped: already exists", empeorando la legibilidad general del orquestador.
+- **The Solution**: Incorporar banderas de silenciamiento en los comandos de despliegue (`podman-compose --quiet pull docker-compose.yml > /dev/null 2>&1`) guardando un log nativo limpio sin la verbosidad intrínseca de la descarga y evaluación de deltas.
+- **Impact**: Mejora drástica de la UX visual en terminal y reducción del búfer generado.
+
 ---
 
 #### 3.2 Stack Orchestrator (`stack.sh`)

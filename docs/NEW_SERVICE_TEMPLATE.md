@@ -16,6 +16,7 @@ Actúa como experto DevOps. Crea los 4 ficheros para integrar este servicio en m
 2. **SELinux:** Todo mapeo de carpetas/volúmenes en `docker-compose.yml` debe terminar en `:Z`.
 3. **Secretos:** Nunca poner passwords fijos en `config.env`; se auto-generan vía bash y se leen del entorno.
 4. **Entregables:** Genera `docker-compose.yml`, `config.env`, `README.md` (formato "Cheat Sheet" minimalista de 30 líneas máximo), y el script orquestador `<slug>.sh`.
+5. **Etiquetas (Tags):** NUNCA inventes o deduzcas tags de imagen. Si dudas de la existencia exacta de un hash/etiqueta, usa `latest`. Tags falsos provocan descargas silently-failed y desencadenan estado de contenedor `missing`.
 
 **ESQUELETO OBLIGATORIO PARA `<slug>.sh`:**
 No inventes funciones. Limítate a rellenar este exacto molde (usando variables base como `$HOST_IP` y `$PUID`):
@@ -69,6 +70,7 @@ check_existing_installation() {
 deploy_and_persist() {
     log "Starting services with podman-compose..."
     cd "$INSTALL_DIR"
+    podman-compose --quiet pull > /dev/null 2>&1 || true
     podman-compose up -d
     verify_containers_running <tus_contenedores_aqui>
     
@@ -137,7 +139,8 @@ do_update() {
     mv -f "$TMP_DIR/docker-compose.yml" "$INSTALL_DIR/docker-compose.yml"
     
     generate_runtime_env
-    cd "$INSTALL_DIR"; podman-compose pull
+    cd "$INSTALL_DIR"
+    podman-compose --quiet pull > /dev/null 2>&1 || true
     deploy_and_persist
     print_success
 }
