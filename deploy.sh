@@ -15,7 +15,8 @@ set -euo pipefail
 # To add a new service: add one line to the REGISTRY array below.
 # ==============================================================================
 
-REPO_BASE="https://raw.githubusercontent.com/Carlosjcfr/docker-develop/main"
+GIT_BRANCH="${GIT_BRANCH:-main}"
+REPO_BASE="${REPO_BASE:-https://raw.githubusercontent.com/Carlosjcfr/docker-develop/$GIT_BRANCH}"
 
 # =============================================================================
 # SERVICE REGISTRY
@@ -178,6 +179,7 @@ while true; do
     fi
 
     # Execute the service script attached to the terminal
+    export GIT_BRANCH REPO_BASE
     bash "$TMP_SCRIPT" < /dev/tty
     EXIT_CODE=$?
 
