@@ -99,7 +99,6 @@ while true; do
 
     for entry in "${REGISTRY[@]}"; do
         local_idx=$((local_idx + 1))
-        local name install_dir container description
         name=$(registry_field "$entry" 0)
         install_dir=$(registry_field "$entry" 2)
         container=$(registry_field "$entry" 3)
