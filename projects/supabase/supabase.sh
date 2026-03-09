@@ -134,6 +134,7 @@ do_install() {
     detect_host_ip
     setup_lingering_and_socket
 
+    check_install_dir_writable "$INSTALL_DIR"
     mkdir -p "$INSTALL_DIR"
     mv -f "$TMP_DIR/config.env" "$INSTALL_DIR/config.env"
     mv -f "$TMP_DIR/docker-compose.yml" "$INSTALL_DIR/docker-compose.yml"

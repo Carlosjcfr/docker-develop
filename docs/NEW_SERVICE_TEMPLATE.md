@@ -61,6 +61,53 @@ do_uninstall() {
     uninstall_generic_service
 }
 
+check_existing_installation() {
+    local dir="${1:-/opt/<slug>}"
+    if [ -f "$dir/.env" ] && podman container exists <main_container> 2>/dev/null; then
+        return 0
+    fi
+    return 1
+}
+
+deploy_and_persist() {
+    log "Starting services with podman-compose..."
+    cd "$INSTALL_DIR"
+    podman-compose up -d
+    verify_containers_running
+    
+    log "Configuring systemd service for persistence..."
+    mkdir -p ~/.config/systemd/user/
+    cat <<EOF > ~/.config/systemd/user/container-<slug>.service
+[Unit]
+Description=<NAME> Stack (podman-compose)
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+WorkingDirectory=$INSTALL_DIR
+ExecStart=$(command -v podman-compose) up -d
+ExecStop=$(command -v podman-compose) down
+TimeoutStartSec=120
+TimeoutStopSec=30
+Restart=on-failure
+RestartSec=15
+
+[Install]
+WantedBy=default.target
+EOF
+    systemctl --user daemon-reload
+    systemctl --user enable --now container-<slug>.service
+}
+
+print_success() {
+    echo "================================================================="
+    echo " <NAME> deployed and secured with systemd."
+    echo " URL: http://\$HOST_IP:<PORT>"
+    echo "================================================================="
+}
+
 # -----------------------------------------------------------------------------
 # REQUIRED ACTIONS (Añade el bloque completo para install/start/update)
 # -----------------------------------------------------------------------------
@@ -70,12 +117,14 @@ do_install() {
     # manage_credentials "$INSTALL_DIR" MIVAR_SECRETA
     setup_lingering_and_socket
     
+    check_install_dir_writable "$INSTALL_DIR"
     mkdir -p "$INSTALL_DIR"
     mv -f "$TMP_DIR/config.env" "$INSTALL_DIR/config.env"
     mv -f "$TMP_DIR/docker-compose.yml" "$INSTALL_DIR/docker-compose.yml"
     
     generate_runtime_env
-    # deploy_and_persist function must be implemented to launch podman-compose up -d and configure systemd
+    deploy_and_persist
+    print_success
 }
 
 do_start() {
@@ -84,9 +133,16 @@ do_start() {
 
 do_update() {
     download_repo_files "$REPO_RAW" config.env docker-compose.yml
-    load_configuration; generate_runtime_env
+    offer_interactive_mode; load_configuration; detect_host_ip
+    setup_lingering_and_socket
+    
+    mv -f "$TMP_DIR/config.env" "$INSTALL_DIR/config.env"
+    mv -f "$TMP_DIR/docker-compose.yml" "$INSTALL_DIR/docker-compose.yml"
+    
+    generate_runtime_env
     cd "$INSTALL_DIR"; podman-compose pull
-    # deploy_and_persist
+    deploy_and_persist
+    print_success
 }
 
 # -----------------------------------------------------------------------------
@@ -118,6 +174,6 @@ else
 fi
 ```
 
-Por último, devuélveme la línea de registro exacta para copiar/pegar en mi menú `deploy.sh` bajo la sintaxis:
-`"Nombre|projects/<slug>/<slug>.sh|/opt/<slug>|<main_container>|Descripción"`
+Por último, devuélveme la línea de registro exacta para copiar/pegar en mi menú `deploy.sh` bajo la sintaxis completa de 6 campos (incluyendo el endpoint dinámico `{IP}`):
+`"Nombre|projects/<slug>/<slug>.sh|/opt/<slug>|<main_container>|Descripción breve|Servicio: {IP}:<PORT>"`
 ---
