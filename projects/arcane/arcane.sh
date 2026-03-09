@@ -299,17 +299,17 @@ do_uninstall() {
     if [ "$FORCE_YES" -eq 1 ]; then
         DELETE_DATA="y"
     else
-        read -rp " Also delete all data (/opt/arcane/data, /opt/arcane/projects)? [y/N]: " DELETE_DATA
+        read -rp " Also delete all data AND the installation directory ($INSTALL_DIR)? [y/N]: " DELETE_DATA
     fi
     if [[ "$DELETE_DATA" =~ ^[Yy]$ ]]; then
-        log "Removing data directories..."
-        rm -rf /opt/arcane/data /opt/arcane/projects
-        log "Data removed."
+        log "Removing configuration, data, and installation directory..."
+        rm -rf "${INSTALL_DIR:?}"
+        log "All data and directory removed."
     else
-        log "Data preserved at /opt/arcane/data and /opt/arcane/projects."
+        log "Data preserved at $INSTALL_DIR/data and $INSTALL_DIR/projects."
+        rm -f "${INSTALL_DIR:?}/.env" "${INSTALL_DIR:?}/config.env" "${INSTALL_DIR:?}/docker-compose.yml"
+        log "Config files cleaned up, but installation directory preserved."
     fi
-
-    rm -f /opt/arcane/.env /opt/arcane/config.env /opt/arcane/docker-compose.yml
 
     echo ""
     echo "================================================================="

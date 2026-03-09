@@ -315,27 +315,17 @@ do_uninstall() {
     if [ "$FORCE_YES" -eq 1 ]; then
         DELETE_DATA="y"
     else
-        read -rp " Delete ALL persistent volumes? (WARNING: TLS certs will be lost!) [y/N]: " DELETE_DATA
+        read -rp " Delete ALL persistent volumes AND the installation directory ($INSTALL_DIR)? (WARNING: TLS certs will be lost!) [y/N]: " DELETE_DATA
     fi
     if [[ "$DELETE_DATA" =~ ^[Yy]$ ]]; then
         log "Removing volumes..."
         podman volume rm caddy_data caddy_config caddymanager_sqlite 2>/dev/null || true
-        log "Volumes removed."
+        log "Removing installation directory..."
+        rm -rf "${INSTALL_DIR:?}"
+        log "Volumes and installation directory removed."
     else
         log "Volumes preserved."
-    fi
-
-    if [ "$FORCE_YES" -eq 1 ]; then
-        DELETE_CONFIG="y"
-    else
-        read -rp " Delete configuration files ($INSTALL_DIR)? [y/N]: " DELETE_CONFIG
-    fi
-    if [[ "$DELETE_CONFIG" =~ ^[Yy]$ ]]; then
-        rm -rf "${INSTALL_DIR:?}/.env" "${INSTALL_DIR:?}/config.env" \
-               "${INSTALL_DIR:?}/docker-compose.yml" "${INSTALL_DIR:?}/site"
-        log "Config files removed."
-    else
-        log "Config files preserved."
+        log "Config files preserved at $INSTALL_DIR."
     fi
 
     echo ""
