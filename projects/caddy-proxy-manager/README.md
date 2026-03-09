@@ -19,7 +19,7 @@ sudo mkdir -p /opt/caddy && sudo chown admin:admin /opt/caddy
 **2. Run the installer**
 
 ```bash
-curl -fsSL "https://raw.githubusercontent.com/Carlosjcfr/docker-develop/main/projects/caddy-proxy%26manager/caddy.sh" \
+curl -fsSL "https://raw.githubusercontent.com/Carlosjcfr/docker-develop/main/projects/caddy-manager-proxy/caddy.sh \
   -o /tmp/caddy.sh && bash /tmp/caddy.sh
 ```
 
