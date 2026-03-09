@@ -272,66 +272,15 @@ do_update() {
 }
 
 do_uninstall() {
-    echo ""
-    echo "=== CADDY: Uninstall ==="
-    echo ""
-    echo " WARNING: This will permanently remove:"
-    echo "   - All Caddy containers (caddy, caddymanager-backend, caddymanager-frontend)"
-    echo "   - The systemd persistence service"
-    echo "   - Container images"
-    echo ""
+    UNINSTALL_SVC_NAME="CADDY"
+    UNINSTALL_SYSTEMD="caddy-compose.service"
+    UNINSTALL_CONTAINERS=("caddy" "caddymanager-backend" "caddymanager-frontend")
+    UNINSTALL_IMAGES=("docker.io/lucaslorentz/caddy-docker-proxy:${CADDY_VERSION:-2.11-alpine}" "docker.io/caddymanager/caddymanager-backend:${PACKAGE_VERSION:-0.0.2}" "docker.io/caddymanager/caddymanager-frontend:${PACKAGE_VERSION:-0.0.2}")
+    UNINSTALL_VOLUMES=("caddy_data" "caddy_config" "caddymanager_sqlite")
+    UNINSTALL_DIRS=()
+    UNINSTALL_DATA_WARN="WARNING: caddy_data contains TLS certificates — CRITICAL to preserve!"
 
-    if [ "$FORCE_YES" -eq 1 ]; then
-        CONFIRM="UNINSTALL"
-    else
-        read -rp " Type 'UNINSTALL' to confirm: " CONFIRM
-    fi
-    if [ "$CONFIRM" != "UNINSTALL" ]; then
-        log "Uninstall cancelled."
-        exit 0
-    fi
-
-    echo ""
-    log "Stopping services..."
-    systemctl --user stop caddy-compose.service 2>/dev/null || true
-    systemctl --user disable caddy-compose.service 2>/dev/null || true
-    rm -f ~/.config/systemd/user/caddy-compose.service
-    systemctl --user daemon-reload
-
-    log "Removing containers..."
-    podman rm -f caddy caddymanager-backend caddymanager-frontend 2>/dev/null || true
-
-    log "Removing images..."
-    podman rmi "docker.io/lucaslorentz/caddy-docker-proxy:${CADDY_VERSION:-2.11-alpine}" 2>/dev/null || true
-    podman rmi "docker.io/caddymanager/caddymanager-backend:${PACKAGE_VERSION:-0.0.2}" 2>/dev/null || true
-    podman rmi "docker.io/caddymanager/caddymanager-frontend:${PACKAGE_VERSION:-0.0.2}" 2>/dev/null || true
-
-    echo ""
-    echo " Persistent volumes:"
-    echo "   - caddy_data          (TLS certificates — CRITICAL to preserve!)"
-    echo "   - caddy_config        (runtime config)"
-    echo "   - caddymanager_sqlite (CaddyManager database)"
-    echo ""
-    if [ "$FORCE_YES" -eq 1 ]; then
-        DELETE_DATA="y"
-    else
-        read -rp " Delete ALL persistent volumes AND the installation directory ($INSTALL_DIR)? (WARNING: TLS certs will be lost!) [y/N]: " DELETE_DATA
-    fi
-    if [[ "$DELETE_DATA" =~ ^[Yy]$ ]]; then
-        log "Removing volumes..."
-        podman volume rm caddy_data caddy_config caddymanager_sqlite 2>/dev/null || true
-        log "Removing installation directory..."
-        rm -rf "${INSTALL_DIR:?}"
-        log "Volumes and installation directory removed."
-    else
-        log "Volumes preserved."
-        log "Config files preserved at $INSTALL_DIR."
-    fi
-
-    echo ""
-    echo "================================================================="
-    echo " CADDY has been uninstalled."
-    echo "================================================================="
+    uninstall_generic_service
 }
 
 # =============================================================================

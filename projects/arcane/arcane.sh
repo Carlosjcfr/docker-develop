@@ -264,57 +264,15 @@ do_update() {
 }
 
 do_uninstall() {
-    echo ""
-    echo "=== ARCANE: Uninstall ==="
-    echo ""
-    echo " WARNING: This will permanently remove:"
-    echo "   - The Arcane container and its image"
-    echo "   - The systemd persistence service"
-    echo ""
+    UNINSTALL_SVC_NAME="ARCANE"
+    UNINSTALL_SYSTEMD="container-arcane.service"
+    UNINSTALL_CONTAINERS=("arcane")
+    UNINSTALL_IMAGES=("ghcr.io/getarcaneapp/arcane:${PACKAGE_VERSION:-latest}")
+    UNINSTALL_VOLUMES=()
+    UNINSTALL_DIRS=("${INSTALL_DIR}/data" "${INSTALL_DIR}/projects")
+    UNINSTALL_DATA_WARN="WARNING: Internal database and all arcane projects will be lost!"
 
-    if [ "$FORCE_YES" -eq 1 ]; then
-        CONFIRM="UNINSTALL"
-    else
-        read -rp " Type 'UNINSTALL' to confirm: " CONFIRM
-    fi
-    if [ "$CONFIRM" != "UNINSTALL" ]; then
-        log "Uninstall cancelled."
-        exit 0
-    fi
-
-    echo ""
-    log "Stopping Arcane container..."
-    systemctl --user stop container-arcane.service 2>/dev/null || true
-    systemctl --user disable container-arcane.service 2>/dev/null || true
-    rm -f ~/.config/systemd/user/container-arcane.service
-    systemctl --user daemon-reload
-
-    log "Removing container..."
-    podman rm -f arcane 2>/dev/null || true
-
-    log "Removing Arcane image..."
-    podman rmi "ghcr.io/getarcaneapp/arcane:${PACKAGE_VERSION:-latest}" 2>/dev/null || true
-
-    echo ""
-    if [ "$FORCE_YES" -eq 1 ]; then
-        DELETE_DATA="y"
-    else
-        read -rp " Also delete all data AND the installation directory ($INSTALL_DIR)? [y/N]: " DELETE_DATA
-    fi
-    if [[ "$DELETE_DATA" =~ ^[Yy]$ ]]; then
-        log "Removing configuration, data, and installation directory..."
-        rm -rf "${INSTALL_DIR:?}"
-        log "All data and directory removed."
-    else
-        log "Data preserved at $INSTALL_DIR/data and $INSTALL_DIR/projects."
-        rm -f "${INSTALL_DIR:?}/.env" "${INSTALL_DIR:?}/config.env" "${INSTALL_DIR:?}/docker-compose.yml"
-        log "Config files cleaned up, but installation directory preserved."
-    fi
-
-    echo ""
-    echo "================================================================="
-    echo " ARCANE has been uninstalled."
-    echo "================================================================="
+    uninstall_generic_service
 }
 
 # =============================================================================
