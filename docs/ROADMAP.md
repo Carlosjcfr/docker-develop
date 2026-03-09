@@ -1,5 +1,6 @@
 # Install Script Roadmap — Towards Full Automation
 
+<<<<<<< Updated upstream
 > **Scope:** Proposals to evolve the current `caddy.sh` pattern into a
 > fully automated, CI/CD-ready, multi-service installation system.
 > No changes have been made yet — this document is a design proposal only.
@@ -298,11 +299,82 @@ caddy (proxy) ──► must be installed first
 
 **Impact:** Catches regressions (broken variable substitution, missing quotes, logic errors)
 before they reach a production server.
+=======
+This document outlines the current state, identified technical debt, and future improvements for the `docker-develop` service installation framework.
 
 ---
 
-## Priority Matrix
+## 🚀 Current Status (March 2026)
 
+The framework has successfully transitioned to a **Modular Library Architecture**.
+
+### Key Achievements
+
+- ✅ **Universal Entry Point (`deploy.sh`)**: Centralized service discovery and dispatching.
+- ✅ **Compiled Shared Library (`lib/lib.sh`)**: High-performance delivery from `lib/src/`.
+- ✅ **Generic Uninstall Engine**: Standardized and safe cleanup with data preservation options.
+- ✅ **Security First**: Non-root execution, `umask 177` for secrets, and `sysctl` unprivileged port management.
+- ✅ **Automation-Ready**: Full CLI flag support (`--install`, `--update`, `--uninstall`, `--yes`, `--dry-run`).
+- ✅ **Diagnostic Probes**: Post-deploy HTTP health checks integrated into the core flow.
+
+---
+
+## 🛠️ Technical Debt Monitor
+
+We track areas where code duplication or suboptimal patterns still exist to prioritize refactoring.
+
+| ID | Issue | Impact | Status |
+|---|---|---|---|
+| **TD-01** | **Duplicate Systemd Logic** | High | 📋 Each script manually writes its unit file. Needs `lib.sh` helper. |
+| **TD-02** | **Management Menu Boilerplate** | Medium | 📋 Every service script duplicates the same 1-3 interactive menu. |
+| **TD-03** | **Hardcoded Path in `do_start`** | Low | ✅ Fixed in all scripts. Now using `$INSTALL_DIR`. |
+| **TD-04** | **Unbound Array Expansion** | High | ✅ Fixed in `uninstall.sh`. Audit other loops for `set -u` compatibility. |
+| **TD-05** | **Boilerplate Variable Defaults** | Low | 📋 `VAR="${VAR:-default}"` takes 20+ lines per script. |
+
+---
+
+## 🎯 Future Phases
+
+### Phase 4: Reliability & Recovery (In Progress)
+
+#### 📋 4.1 Rollback & Pre-update Snapshots
+
+- **Problem**: Failed updates leave the service down or in a partial state.
+- **Solution**: Before `do_update()`, snapshot `.env`, `docker-compose.yml`, and `config.env`.
+- **Auto-Rollback**: If `verify_containers_running()` or HTTP probes fail, restore the snapshot automatically.
+
+#### 📋 4.2 Enhanced Pre-flight Diagnostics
+
+- **Disk Space**: Verify `>500MB` available in `$INSTALL_DIR`.
+- **Port Conflict**: Check if required ports (80, 443, etc.) are already bound.
+- **Registry Access**: Test connectivity to `docker.io` and `ghcr.io` early.
+
+#### 📋 4.3 Atomic File Placement
+
+- **Logic**: Use `.new` suffixes for downloads, validate, and only then `mv` to final destination.
+
+---
+
+### Phase 5: Hardening & UX
+
+#### 🔮 5.1 Secret Rotation Engine
+
+- Implementation of `--rotate-secrets` to regenerate `JWT_SECRET` and restart stacks safely.
+
+#### 🔮 5.2 Centralized Status Dashboard
+
+- `deploy.sh` enhancement to show a live status table of ALL installed services (Up/Down, Ports, Uptime).
+
+#### 🔮 5.3 Modular Systemd Helper
+
+- Complete `TD-01` by providing a single function in `lib.sh` that takes `SERVICE_NAME` and `INSTALL_DIR` to generate the unit file.
+>>>>>>> Stashed changes
+
+---
+
+## 📈 Priority Matrix
+
+<<<<<<< Updated upstream
 | ID | Improvement | Effort | Impact | Suggested order |
 |---|---|---|---|---|
 | 1.1 | CLI argument support | Low | High | **1st** |
@@ -331,3 +403,12 @@ The natural implementation sequence is:
 3.1 (lib.sh)  → 2.1 (health checks)         → 2.2 (rollback)  →
 3.2 (stack.sh)
 ```
+=======
+| Feature | Effort | Impact | Status |
+|---|:---:|:---:|---|
+| **Rollback on failure** | Medium | High | 📋 Planned |
+| **Systemd Helper (`lib.sh`)** | Low | Medium | 📋 Quick-win |
+| **Pre-flight diagnostics** | Low | High | 📋 Planned |
+| **Status Dashboard** | Medium | High | 🔮 Future |
+| **Secret rotation** | Medium | Medium | 🔮 Future |
+>>>>>>> Stashed changes

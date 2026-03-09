@@ -439,11 +439,17 @@ do_start() {
         echo "Caddy services started successfully."
     fi
 
-    if [ -f /opt/caddy/.env ]; then
+    if [ -f "$INSTALL_DIR/.env" ]; then
         local ip ui_port
+<<<<<<< Updated upstream
         ip=$(grep "^HOST_IP=" /opt/caddy/.env | cut -d '=' -f2- || echo "unknown")
         ui_port=$(grep "^CADDYMANAGER_UI_PORT=" /opt/caddy/.env | cut -d '=' -f2- || echo "8080")
         echo "CaddyManager UI: http://$ip:$ui_port"
+=======
+        ip=$(grep "^HOST_IP=" "$INSTALL_DIR/.env" | cut -d '=' -f2- || echo "unknown")
+        ui_port=$(grep "^CADDYMANAGER_UI_PORT=" "$INSTALL_DIR/.env" | cut -d '=' -f2- || echo "8080")
+        log "CaddyManager UI: http://$ip:$ui_port"
+>>>>>>> Stashed changes
     fi
 }
 
