@@ -15,6 +15,17 @@ set -euo pipefail
 REPO_RAW="https://raw.githubusercontent.com/Carlosjcfr/docker-develop/main/projects/arcane"
 
 # =============================================================================
+# LOGGING
+# Structured output with UTC timestamps and severity levels.
+# err() and warn() write to stderr so they are always visible even when
+# stdout is redirected (e.g. piped to tee or a log file).
+# =============================================================================
+
+log()  { echo "[$(date -u '+%H:%M:%S')] [INFO]  $*"; }
+warn() { echo "[$(date -u '+%H:%M:%S')] [WARN]  $*" >&2; }
+err()  { echo "[$(date -u '+%H:%M:%S')] [ERROR] $*" >&2; }
+
+# =============================================================================
 # SHARED FUNCTIONS
 # =============================================================================
 
@@ -219,33 +230,124 @@ EOF
     echo ".env file ready (permissions 600)."
 }
 
+# Validates that the installation directory exists and is writable by the
+# current user. If /opt is root-owned and the user skipped the prerequisite
+# step (sudo mkdir + chown), the deployment would fail silently later.
+# Exit code 2 = missing prerequisite: install directory not writable.
+check_install_dir_writable() {
+    local dir="${1:-/opt/arcane}"
+
+    if ! mkdir -p "$dir" 2>/dev/null || ! [ -w "$dir" ]; then
+        echo ""
+        echo "-----------------------------------------------------------------"
+        echo " ERROR [exit 2]: INSTALLATION DIRECTORY NOT WRITABLE"
+        echo "-----------------------------------------------------------------"
+        echo " Cannot write to: $dir"
+        echo ""
+        echo " REQUIRED PREREQUISITE STEP (run this first, then retry):"
+        echo ""
+        echo "   sudo mkdir -p $dir && sudo chown \$USER:\$USER $dir"
+        echo ""
+        echo " This step is necessary when /opt is owned by root and your"
+        echo " user does not have write access to it."
+        echo "-----------------------------------------------------------------"
+        exit 2
+    fi
+}
+
+# Verifies that all required containers are in 'running' state.
+# podman-compose up -d exits 0 even when containers fail to start,
+# so we must actively check the container states after the deploy.
+# Exit code 3 = deployment failed: one or more containers not running.
+verify_containers_running() {
+    local -a REQUIRED=("arcane")
+    local -a FAILED=()
+
+    log "Verifying containers are running..."
+    # Brief wait to allow containers to transition from 'created' to 'running'
+    sleep 3
+
+    for name in "${REQUIRED[@]}"; do
+        local status
+        status=$(podman inspect "$name" --format '{{.State.Status}}' 2>/dev/null || echo "missing")
+        if [[ "$status" != "running" ]]; then
+            FAILED+=("  \u2717 $name  (status: $status)")
+        else
+            log "  \u2713 $name"
+        fi
+    done
+
+    if [[ ${#FAILED[@]} -gt 0 ]]; then
+        echo ""
+        echo "-----------------------------------------------------------------"
+        echo " ERROR [exit 3]: DEPLOYMENT FAILED \u2014 containers did not start"
+        echo "-----------------------------------------------------------------"
+        printf '%s\n' "${FAILED[@]}"
+        echo ""
+        echo " Most likely causes:"
+        echo ""
+        echo "   1. Image pull failure (no network or registry access to ghcr.io)."
+        echo ""
+        echo "   2. Install directory not prepared beforehand (see exit 2)."
+        echo ""
+        echo "   3. Port conflict: another service is already using port $APP_PORT."
+        echo ""
+        echo " Diagnostic commands:"
+        echo "   journalctl --user -u container-arcane.service -n 80 --no-pager"
+        echo "   podman ps -a"
+        echo "-----------------------------------------------------------------"
+        exit 3
+    fi
+
+    log "All containers running."
+}
+
 prepare_directories() {
-    echo "Preparing data directories..."
+    log "Preparing data directories..."
+    check_install_dir_writable "$INSTALL_DIR"
     mkdir -p "$INSTALL_DIR" "${INSTALL_DIR}/data" "${INSTALL_DIR}/projects"
     sudo chown -R "${PUID}:${PGID}" "${INSTALL_DIR}/data" "${INSTALL_DIR}/projects"
-    echo "Directories ready."
+    log "Directories ready."
 }
 
 deploy_and_persist() {
-    echo "Starting services with podman-compose..."
+    log "Starting services with podman-compose..."
     cd "$INSTALL_DIR"
+    # Note: podman-compose up -d returns exit code 0 even when containers
+    # fail to start. verify_containers_running() performs the real check.
     podman-compose up -d
 
-    echo "Configuring systemd service for persistence..."
+    # Abort immediately if any container is not running.
+    # This prevents configuring systemd persistence for a broken deployment.
+    verify_containers_running
+
+    log "Configuring systemd service for persistence..."
     mkdir -p ~/.config/systemd/user/
 
-    # Generate systemd unit in the current directory, then move it.
-    # Uses --new to recreate the container from the image on each service start.
-    # Compatible with Podman 4.x (no --dest or --restart-policy flags).
-    podman generate systemd --name arcane --files --new
-    mv -f container-arcane.service ~/.config/systemd/user/
+    # Handwritten systemd unit — replaces the deprecated 'podman generate systemd'
+    # command (removed in Podman 5+). Type=oneshot + RemainAfterExit=yes is the
+    # correct pattern for podman-compose stacks: the compose command forks and
+    # exits immediately, but the containers keep running. systemd would otherwise
+    # consider the service dead without RemainAfterExit.
+    cat <<EOF > ~/.config/systemd/user/container-arcane.service
+[Unit]
+Description=Arcane Container Management UI (podman-compose)
+Wants=network-online.target
+After=network-online.target
 
-    # Ensure the service restarts on failure via systemd override
-    mkdir -p ~/.config/systemd/user/container-arcane.service.d
-    cat <<EOF > ~/.config/systemd/user/container-arcane.service.d/restart.conf
 [Service]
-Restart=always
-RestartSec=10
+Type=oneshot
+RemainAfterExit=yes
+WorkingDirectory=$INSTALL_DIR
+ExecStart=$(command -v podman-compose) up -d
+ExecStop=$(command -v podman-compose) down
+TimeoutStartSec=120
+TimeoutStopSec=30
+Restart=on-failure
+RestartSec=15
+
+[Install]
+WantedBy=default.target
 EOF
 
     systemctl --user daemon-reload
