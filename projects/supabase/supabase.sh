@@ -79,9 +79,17 @@ EOF
 deploy_and_persist() {
     log "Starting services with podman-compose..."
     cd "$INSTALL_DIR"
+
+    podman-compose config -q || err "Sintaxis de docker-compose invalida. Abortando instalación."
+
+    log "Extrayendo imágenes de contenedor... (Los detalles se guardan en install.log)"
+    podman-compose pull > "$INSTALL_DIR/install.log" 2>&1 || true
+
     podman-compose up -d
 
     verify_containers_running "supabase-db" "supabase-studio" "supabase-kong" "supabase-auth" "supabase-rest" "supabase-realtime" "supabase-meta" "supabase-storage"
+
+    rm -f "$INSTALL_DIR"/*.bak 2>/dev/null || true
 
     log "Configuring systemd service for persistence..."
     mkdir -p ~/.config/systemd/user/
@@ -158,14 +166,13 @@ do_update() {
     detect_host_ip
     setup_lingering_and_socket
 
-    mv -f "$TMP_DIR/config.env" "$INSTALL_DIR/config.env"
-    mv -f "$TMP_DIR/docker-compose.yml" "$INSTALL_DIR/docker-compose.yml"
-
     generate_runtime_env
 
-    log "Pulling latest images..."
-    cd "$INSTALL_DIR"
-    podman-compose pull
+    cp "$INSTALL_DIR/config.env" "$INSTALL_DIR/config.env.bak" 2>/dev/null || true
+    cp "$INSTALL_DIR/docker-compose.yml" "$INSTALL_DIR/docker-compose.yml.bak" 2>/dev/null || true
+
+    mv -f "$TMP_DIR/config.env" "$INSTALL_DIR/config.env"
+    mv -f "$TMP_DIR/docker-compose.yml" "$INSTALL_DIR/docker-compose.yml"
 
     deploy_and_persist
     print_success
@@ -176,7 +183,14 @@ do_uninstall() {
     UNINSTALL_SVC_NAME="Supabase"
     UNINSTALL_SYSTEMD="container-supabase.service" 
     UNINSTALL_CONTAINERS=("supabase-db" "supabase-studio" "supabase-kong" "supabase-auth" "supabase-rest" "supabase-realtime" "supabase-meta" "supabase-storage")
-    UNINSTALL_IMAGES=("docker.io/supabase/postgres:\${POSTGRES_VERSION}" "docker.io/supabase/studio:\${STUDIO_VERSION}" "docker.io/library/kong:\${KONG_VERSION}" "docker.io/supabase/gotrue:\${GOTRUE_VERSION}" "docker.io/postgrest/postgrest:\${POSTGREST_VERSION}" "docker.io/supabase/realtime:\${REALTIME_VERSION}" "docker.io/supabase/postgres-meta:\${META_VERSION}" "docker.io/supabase/storage-api:\${STORAGE_VERSION}")
+    
+    if [ -f "$INSTALL_DIR/docker-compose.yml" ]; then
+        cd "$INSTALL_DIR"
+        UNINSTALL_IMAGES=($(podman-compose config -q | grep 'image:' | awk '{print $2}' || true))
+        cd - >/dev/null
+    else
+        UNINSTALL_IMAGES=("docker.io/supabase/postgres:\${POSTGRES_VERSION}" "docker.io/supabase/studio:\${STUDIO_VERSION}" "docker.io/library/kong:\${KONG_VERSION}" "docker.io/supabase/gotrue:\${GOTRUE_VERSION}" "docker.io/postgrest/postgrest:\${POSTGREST_VERSION}" "docker.io/supabase/realtime:\${REALTIME_VERSION}" "docker.io/supabase/postgres-meta:\${META_VERSION}" "docker.io/supabase/storage-api:\${STORAGE_VERSION}")
+    fi
     UNINSTALL_VOLUMES=("supabase_db_data" "supabase_storage_data")
     UNINSTALL_DIRS=()
     uninstall_generic_service
