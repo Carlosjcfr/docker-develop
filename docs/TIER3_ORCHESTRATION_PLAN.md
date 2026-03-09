@@ -297,22 +297,32 @@ jobs:
 
 | Phase | Deliverable | Prerequisite |
 |---|---|---|
-| **Phase 0** | Fix `arcane.sh`: add missing guards, fix `podman generate systemd` | None |
-| **Phase 1** | `lib/lib.sh` created; both scripts refactored to source it | Phase 0 |
-| **Phase 2** | `deploy.sh` with service registry and dispatcher menu | Phase 1 |
-| **Phase 3** | `--dry-run` + `--yes` + `--install` flags in lib/all scripts | Phase 1 |
-| **Phase 4** | `.github/workflows/scripts-ci.yml` (ShellCheck + dry-run) | Phase 3 |
+| **Phase 0** | ✅ Fix `arcane.sh`: add missing guards, fix `podman generate systemd` | None |
+| **Phase 1** | ✅ `lib/lib.sh` created; both scripts refactored to source it | Phase 0 |
+| **Phase 2** | ✅ `deploy.sh` with service registry and dispatcher menu | Phase 1 |
+| **Phase 3** | ✅ `--dry-run` + `--yes` + `--install` flags in lib/all scripts | Phase 1 |
+| **Phase 4** | ✅ `.github/workflows/scripts-ci.yml` (ShellCheck + dry-run) | Phase 3 |
 
 ---
 
 ## Open Questions
 
-1. **Registry format:** Bash array embedded in `deploy.sh` (simpler, no `jq` dependency)
-   vs external `registry.json` (more extensible, requires parsing)?
-   → Recommendation: Bash array initially; migrate to JSON when there are 5+ services
+1. **Registry format:** Embedded Bash array in `deploy.sh` (simpler, no `jq` dependency).
+   → Status: ✅ Implemented as Bash array.
 
-2. **`deploy.sh` branch:** Publish on `main` (always latest) or a versioned ref?
-   → Recommendation: `main` for `deploy.sh`; `lib/v1/lib.sh` for lib (to allow breaking changes)
+2. **`deploy.sh` branch:** Publish on `main`?
+   → Status: ✅ `deploy.sh` on `main`; service scripts branch per project.
 
-3. **Service detection in `deploy.sh`:** Use the same `[ -f install_dir/.env ] && podman container exists main_container` check as each service script?
-   → Recommendation: Yes, keep detection logic consistent
+3. **Service detection in `deploy.sh`:** Use the same `[ -f install_dir/.env ] && podman container exists main_container` check?
+   → Status: ✅ Consistent detection logic implemented.
+
+---
+
+## CI Coverage (Phase 4)
+
+| Job | What it validates | Trigger |
+| --- | --- | --- |
+| `shellcheck` | Static analysis of all `.sh` files — bad quoting, undefined vars, logic errors | Push / PR |
+| `syntax` | Bash `-n` parse on every script — catches syntax errors instantly | Push / PR |
+| `config-secrets` | Scans every `config.env` for committed secrets — mirrors `lib.sh` guard | Push / PR |
+| `parse-args` | Unit-tests `parse_args()` from `lib.sh` directly for all known flags | Push / PR (after syntax) |

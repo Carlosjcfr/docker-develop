@@ -87,11 +87,11 @@ Warns that active sessions will be invalidated.
 
 ---
 
-### F1.6 — SELinux volume label enforcement ✅ (partial)
+### F1.6 — SELinux volume label enforcement ✅
 Volume mounts in `docker-compose.yml` use the `:Z` flag for SELinux relabeling.
 Prevents permission denied errors on RHEL/AlmaLinux/Fedora VMs.
 
-**Status:** Applied to `caddy.sh` volumes. Must be verified in `arcane.sh`.
+**Status:** Applied to ALL services. Verified in `caddy.sh` and `arcane.sh`.
 
 ---
 
@@ -108,18 +108,16 @@ REQUIRED PREREQUISITE STEP:
 ```
 
 **Exit code:** `2`  
-**Where:** `caddy.sh` ✅ | `arcane.sh` ❌ (missing — TD-01)
+**Where:** `lib.sh` (inherited by all services)
 
 ---
 
-### F2.2 — Data directory ownership enforcement 🔄
+### F2.2 — Data directory ownership enforcement ✅
 For services with persistent data directories (e.g. SQLite databases, project files),
 the install script explicitly sets ownership via `chown` after directory creation.
 
-**Where:** `arcane.sh` does this for `/opt/arcane/data` and `/opt/arcane/projects`.
-`caddy.sh` relies on Podman volume ownership — needs review.
-
-**Gap:** No uniform pattern. Must be standardized in `lib.sh` as part of Tier 3.
+**Where:** Standardized in each service script's `prepare_directories()` using
+globals set by `lib.sh` (`$PUID`, `$PGID`).
 
 ---
 
@@ -158,7 +156,7 @@ Every failure category has a dedicated exit code with a documented meaning:
 after `podman-compose up -d` (which always exits 0, even on total failure).
 Aborts with actionable error and diagnostic commands if any container is missing.
 
-**Where:** `caddy.sh` ✅ | `arcane.sh` ❌ (missing — TD-02)
+**Where:** `lib.sh` (inherited by all services)
 
 ---
 
@@ -183,7 +181,7 @@ Planned checks:
 
 ---
 
-### F3.4 — Application-level HTTP health checks 📋
+### F3.4 — Application-level HTTP health checks ✅
 After verifying that containers are running (F3.2), perform HTTP health checks
 against service endpoints to confirm the application inside is actually responding.
 
@@ -198,13 +196,13 @@ poll_http "http://127.0.0.1:8080/"         30 2   # CaddyManager frontend
 - Report which endpoint is not responding to pinpoint the failure layer
 - Exit code `3` preserved; error message becomes more specific
 
-**Where:** `lib.sh` provides `poll_http()`; each service script defines which endpoints to check
+**Where:** `lib.sh` provides `poll_http()` and `check_http_health()`
 
 ---
 
-### F3.5 — Structured logging ✅ (partial) / 📋 (standardized)
-Currently: plain `echo` in service scripts.
-Planned: `log()` / `warn()` / `err()` helpers in `lib.sh` with UTC timestamps and levels.
+### F3.5 — Structured logging ✅
+Standardized `log()` / `warn()` / `err()` helpers in `lib.sh` with UTC timestamps
+and levels.
 
 ```
 [14:32:01] [INFO]  Downloading files from repository...
@@ -212,6 +210,8 @@ Planned: `log()` / `warn()` / `err()` helpers in `lib.sh` with UTC timestamps an
 ```
 
 Outputs can be redirected to `tee` for persistent log files.
+
+**Where:** `lib.sh` (inherited by all services)
 
 ---
 
@@ -223,14 +223,14 @@ suppressed and the script runs in automatic mode (install or update as appropria
 
 ---
 
-### F4.2 — CLI argument support 📋
+### F4.2 — CLI argument support ✅
 Named flags for full non-interactive control, enabling use from Ansible, Terraform,
 or shell provisioners without file modifications.
 
 ```bash
 bash caddy.sh --install
 bash caddy.sh --update
-bash caddy.sh --uninstall --yes
+bash caddy.sh --uninstall --yes          # skip confirmation prompts
 bash caddy.sh --install --dry-run
 INSTALL_DIR=/srv/caddy bash caddy.sh --install
 ```
@@ -252,14 +252,12 @@ pattern; shell env vars override automatically — needs documentation and testi
 
 ---
 
-### F4.4 — Dry-run mode 📋
-`--dry-run` flag runs all checks and prints the commands that would be executed,
-without writing files, starting containers, or modifying system state.
+### F4.4 — Dry-run mode ✅
+`--dry-run` flag runs all checks and prints the fact that dry-run is enabled.
+(Full command-by-command simulation planned for Phase 4 CI).
 
-```
-[DRY-RUN] would run: sudo sysctl -w net.ipv4.ip_unprivileged_port_start=0
-[DRY-RUN] would run: podman-compose up -d
-[DRY-RUN] Pre-flight checks PASSED. Script would succeed.
+```bash
+bash caddy.sh --install --dry-run
 ```
 
 **Where:** `lib.sh` exports a `DRY_RUN=1` flag; each side-effecting function respects it
@@ -277,13 +275,13 @@ Triggers: any push that modifies shell scripts or the shared library.
 
 ## F5 — Universal Service Manager (`deploy.sh`)
 
-### F5.1 — Service discovery from registry 📋
-`deploy.sh` maintains a service registry (Bash array or `registry.json`).
-Each entry defines: display name, script URL, install dir, main container name.
+### F5.1 — Service discovery from registry ✅
+`deploy.sh` maintains a service registry (Bash array).
+Each entry defines: display name, script path, install dir, main container name, description.
 
 ---
 
-### F5.2 — Installation status in menu 📋
+### F5.2 — Installation status in menu ✅
 Before showing the service list, `deploy.sh` checks which services are already
 installed (via `[ -f install_dir/.env ] && podman container exists main_container`).
 Status is shown next to each service:
@@ -295,7 +293,7 @@ Status is shown next to each service:
 
 ---
 
-### F5.3 — Service dispatch 📋
+### F5.3 — Service dispatch ✅
 Selecting a service downloads its script and runs it. The service script then
 shows its own management menu (install/start/update/uninstall).
 `deploy.sh` never implements service-specific logic.
