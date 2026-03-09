@@ -16,6 +16,17 @@ set -euo pipefail
 REPO_RAW="https://raw.githubusercontent.com/Carlosjcfr/docker-develop/caddy-manager-proxy/projects/caddy-proxy-manager"
 
 # =============================================================================
+# LOGGING
+# Structured output with UTC timestamps and severity levels.
+# err() and warn() write to stderr so they are always visible even when
+# stdout is redirected (e.g. piped to tee or a log file).
+# =============================================================================
+
+log()  { echo "[$(date -u '+%H:%M:%S')] [INFO]  $*"; }
+warn() { echo "[$(date -u '+%H:%M:%S')] [WARN]  $*" >&2; }
+err()  { echo "[$(date -u '+%H:%M:%S')] [ERROR] $*" >&2; }
+
+# =============================================================================
 # SHARED FUNCTIONS
 # =============================================================================
 
