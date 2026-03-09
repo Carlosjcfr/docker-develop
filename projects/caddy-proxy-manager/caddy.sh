@@ -246,8 +246,35 @@ EOF
     echo ".env file ready (permissions 600)."
 }
 
+# Validates that the installation directory exists and is writable by the
+# current user. If /opt is root-owned and the user skipped the prerequisite
+# step (sudo mkdir + chown), the deployment would fail silently later.
+# Exit code 2 = missing prerequisite: install directory not writable.
+check_install_dir_writable() {
+    local dir="${1:-/opt/caddy}"
+
+    # Try to create/write into the target directory
+    if ! mkdir -p "$dir" 2>/dev/null || ! [ -w "$dir" ]; then
+        echo ""
+        echo "-----------------------------------------------------------------"
+        echo " ERROR [exit 2]: INSTALLATION DIRECTORY NOT WRITABLE"
+        echo "-----------------------------------------------------------------"
+        echo " Cannot write to: $dir"
+        echo ""
+        echo " REQUIRED PREREQUISITE STEP (run this first, then retry):"
+        echo ""
+        echo "   sudo mkdir -p $dir && sudo chown \$USER:\$USER $dir"
+        echo ""
+        echo " This step is necessary when /opt is owned by root and your"
+        echo " user does not have write access to it."
+        echo "-----------------------------------------------------------------"
+        exit 2
+    fi
+}
+
 prepare_directories() {
     echo "Preparing installation directory: $INSTALL_DIR"
+    check_install_dir_writable "$INSTALL_DIR"
     mkdir -p "$INSTALL_DIR"
 
     # Move downloaded files into the install directory
@@ -268,10 +295,66 @@ prepare_directories() {
     echo "Directories ready."
 }
 
+# Verifies that all required containers are in 'running' state.
+# podman-compose up -d exits 0 even when containers fail to start,
+# so we must actively check the container states after the deploy.
+# Exit code 3 = deployment failed: one or more containers not running.
+verify_containers_running() {
+    local -a REQUIRED=("caddy" "caddymanager-backend" "caddymanager-frontend")
+    local -a FAILED=()
+
+    echo "Verifying containers are running..."
+    # Brief wait to allow containers to transition from 'created' to 'running'
+    sleep 3
+
+    for name in "${REQUIRED[@]}"; do
+        local status
+        status=$(podman inspect "$name" --format '{{.State.Status}}' 2>/dev/null || echo "missing")
+        if [[ "$status" != "running" ]]; then
+            FAILED+=("  ✗ $name  (status: $status)")
+        else
+            echo "  ✓ $name"
+        fi
+    done
+
+    if [[ ${#FAILED[@]} -gt 0 ]]; then
+        echo ""
+        echo "-----------------------------------------------------------------"
+        echo " ERROR [exit 3]: DEPLOYMENT FAILED — containers did not start"
+        echo "-----------------------------------------------------------------"
+        printf '%s\n' "${FAILED[@]}"
+        echo ""
+        echo " Most likely causes:"
+        echo ""
+        echo "   1. Short image names (no 'docker.io/' prefix) — Podman on"
+        echo "      this system requires fully qualified registry references."
+        echo "      The docker-compose.yml images must be prefixed, e.g.:"
+        echo "        docker.io/lucaslorentz/caddy-docker-proxy:2.11-alpine"
+        echo ""
+        echo "   2. No connectivity to Docker Hub to pull the images."
+        echo ""
+        echo "   3. Install directory was not prepared beforehand (see exit 2)."
+        echo ""
+        echo " Diagnostic commands:"
+        echo "   journalctl --user -u caddy-compose.service -n 80 --no-pager"
+        echo "   podman ps -a"
+        echo "-----------------------------------------------------------------"
+        exit 3
+    fi
+
+    echo "All containers running."
+}
+
 deploy_and_persist() {
     echo "Starting services with podman-compose..."
     cd "$INSTALL_DIR"
+    # Note: podman-compose up -d returns exit code 0 even when containers
+    # fail to start. verify_containers_running() performs the real check.
     podman-compose up -d
+
+    # Abort immediately if any container is not running.
+    # This prevents configuring systemd persistence for a broken deployment.
+    verify_containers_running
 
     echo "Configuring systemd service for persistence..."
     mkdir -p ~/.config/systemd/user/
@@ -415,9 +498,9 @@ do_uninstall() {
     podman rm -f caddy caddymanager-backend caddymanager-frontend 2>/dev/null || true
 
     echo "Removing images..."
-    podman rmi "lucaslorentz/caddy-docker-proxy:${CADDY_VERSION:-2.11-alpine}" 2>/dev/null || true
-    podman rmi "caddymanager/caddymanager-backend:${PACKAGE_VERSION:-0.0.2}" 2>/dev/null || true
-    podman rmi "caddymanager/caddymanager-frontend:${PACKAGE_VERSION:-0.0.2}" 2>/dev/null || true
+    podman rmi "docker.io/lucaslorentz/caddy-docker-proxy:${CADDY_VERSION:-2.11-alpine}" 2>/dev/null || true
+    podman rmi "docker.io/caddymanager/caddymanager-backend:${PACKAGE_VERSION:-0.0.2}" 2>/dev/null || true
+    podman rmi "docker.io/caddymanager/caddymanager-frontend:${PACKAGE_VERSION:-0.0.2}" 2>/dev/null || true
 
     # Ask about data removal
     echo ""
