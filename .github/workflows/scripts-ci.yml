@@ -1,0 +1,207 @@
+name: Scripts CI
+
+# ==============================================================================
+# Validates all shell scripts in the repository on every push or PR that
+# modifies lib/, service scripts, or deploy.sh.
+#
+# Jobs:
+#   shellcheck       — Static analysis. Catches syntax bugs, quoting issues,
+#                      undefined variables, and bad patterns before runtime.
+#   syntax           — Bash -n pass on every .sh file. Fast catch for parse errors.
+#   config-secrets   — Ensures no secrets are committed to config.env files.
+#   parse-args       — Unit-tests parse_args() from lib.sh directly.
+# ==============================================================================
+
+on:
+  push:
+    branches:
+      - main
+      - caddy-manager-proxy
+    paths:
+      - 'lib/**'
+      - 'projects/**/*.sh'
+      - 'deploy.sh'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'lib/**'
+      - 'projects/**/*.sh'
+      - 'deploy.sh'
+
+jobs:
+
+  # ============================================================================
+  # JOB 1 — ShellCheck (static analysis)
+  # ============================================================================
+  shellcheck:
+    name: ShellCheck (Static Analysis)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install ShellCheck
+        run: sudo apt-get install -y shellcheck
+
+      - name: Lint lib/lib.sh
+        run: |
+          echo "→ lib/lib.sh"
+          shellcheck -x lib/lib.sh
+
+      - name: Lint service scripts
+        run: |
+          # -P lib/ tells ShellCheck where to find sourced files
+          # -x allows following external sources (e.g. source <(curl ...))
+          for script in projects/caddy-proxy-manager/caddy.sh \
+                        projects/arcane/arcane.sh; do
+            echo "→ $script"
+            shellcheck -x -P lib/ "$script"
+          done
+
+      - name: Lint deploy.sh
+        run: |
+          echo "→ deploy.sh"
+          shellcheck deploy.sh
+
+  # ============================================================================
+  # JOB 2 — Bash syntax check (bash -n)
+  # Faster than ShellCheck, catches parse errors instantly.
+  # ============================================================================
+  syntax:
+    name: Bash Syntax Check
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Check syntax of all shell scripts
+        run: |
+          error=0
+          while IFS= read -r -d '' file; do
+            echo "→ $file"
+            bash -n "$file" || { echo "  ✗ SYNTAX ERROR in $file"; error=1; }
+          done < <(find lib/ projects/ -name "*.sh" -print0)
+
+          echo "→ deploy.sh"
+          bash -n deploy.sh || { echo "  ✗ SYNTAX ERROR in deploy.sh"; error=1; }
+
+          if [ "$error" -ne 0 ]; then
+            echo ""
+            echo "One or more scripts have syntax errors. See above for details."
+            exit 1
+          fi
+          echo ""
+          echo "All scripts passed syntax check."
+
+  # ============================================================================
+  # JOB 3 — Config file secret scan
+  # Verifies that no secret keys (JWT_SECRET, ENCRYPTION_KEY, etc.) are
+  # committed in any config.env file. Mirrors the check in lib.sh's
+  # check_secrets_not_in_config() at the CI level.
+  # ============================================================================
+  config-secrets:
+    name: Config Secret Scan
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Scan all config.env files for committed secrets
+        run: |
+          error=0
+          FORBIDDEN_KEYS=(JWT_SECRET ENCRYPTION_KEY)
+
+          while IFS= read -r -d '' config_file; do
+            echo "→ $config_file"
+            for key in "${FORBIDDEN_KEYS[@]}"; do
+              if grep -q "^${key}=" "$config_file"; then
+                echo "  ✗ ERROR: '$key' found in $config_file"
+                echo "    Secrets must NEVER be committed. They are auto-generated at install time."
+                error=1
+              fi
+            done
+          done < <(find projects/ -name "config.env" -print0)
+
+          if [ "$error" -ne 0 ]; then
+            exit 1
+          fi
+          echo "No secrets detected in any config.env file."
+
+  # ============================================================================
+  # JOB 4 — parse_args unit test
+  # Sources lib.sh directly (no side effects) and verifies that parse_args()
+  # sets CMD_ACTION, FORCE_YES, and DRY_RUN correctly for each known flag.
+  # This is the most testable unit of lib.sh in a GitHub Actions environment.
+  # ============================================================================
+  parse-args:
+    name: parse_args Unit Test
+    runs-on: ubuntu-latest
+    needs: [syntax]   # Only run if syntax check passes
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Unit-test parse_args from lib.sh
+        run: |
+          # Source lib.sh — it only defines functions, no side effects at source time
+          # shellcheck source=lib/lib.sh
+          source lib/lib.sh
+
+          fail() { echo "  ✗ $*"; exit 1; }
+          pass() { echo "  ✓ $*"; }
+
+          echo "Testing --install..."
+          parse_args --install
+          [ "$CMD_ACTION" = "install" ] || fail "--install did not set CMD_ACTION=install"
+          pass "--install sets CMD_ACTION=install"
+
+          echo "Testing --update..."
+          parse_args --update
+          [ "$CMD_ACTION" = "update" ] || fail "--update did not set CMD_ACTION=update"
+          pass "--update sets CMD_ACTION=update"
+
+          echo "Testing --uninstall..."
+          parse_args --uninstall
+          [ "$CMD_ACTION" = "uninstall" ] || fail "--uninstall did not set CMD_ACTION=uninstall"
+          pass "--uninstall sets CMD_ACTION=uninstall"
+
+          echo "Testing --start..."
+          parse_args --start
+          [ "$CMD_ACTION" = "start" ] || fail "--start did not set CMD_ACTION=start"
+          pass "--start sets CMD_ACTION=start"
+
+          echo "Testing --yes..."
+          parse_args --yes
+          [ "$FORCE_YES" = "1" ] || fail "--yes did not set FORCE_YES=1"
+          pass "--yes sets FORCE_YES=1"
+
+          echo "Testing -y (short form)..."
+          parse_args -y
+          [ "$FORCE_YES" = "1" ] || fail "-y did not set FORCE_YES=1"
+          pass "-y sets FORCE_YES=1"
+
+          echo "Testing --dry-run..."
+          parse_args --dry-run
+          [ "$DRY_RUN" = "1" ] || fail "--dry-run did not set DRY_RUN=1"
+          pass "--dry-run sets DRY_RUN=1"
+
+          echo "Testing combined flags --install --yes --dry-run..."
+          parse_args --install --yes --dry-run
+          [ "$CMD_ACTION" = "install" ] || fail "Combined: CMD_ACTION not set"
+          [ "$FORCE_YES" = "1" ]        || fail "Combined: FORCE_YES not set"
+          [ "$DRY_RUN" = "1" ]          || fail "Combined: DRY_RUN not set"
+          pass "Combined flags parsed correctly"
+
+          echo "Testing unknown flag returns error..."
+          if parse_args --unknown-flag 2>/dev/null; then
+            fail "Unknown flag did not return error"
+          fi
+          pass "Unknown flag exits with error"
+
+          echo ""
+          echo "All parse_args tests passed."

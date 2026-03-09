@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # ==============================================================================
-# ARCANE - Management Script
+# ARCANE — Management Script
 # Single entry point for installing, starting, updating, and uninstalling Arcane.
 #
 # Usage:
@@ -12,34 +12,32 @@ set -euo pipefail
 # Re-running this script on an existing installation is safe.
 # ==============================================================================
 
-REPO_RAW="https://raw.githubusercontent.com/Carlosjcfr/docker-develop/main/projects/arcane"
+GIT_BRANCH="${GIT_BRANCH:-main}"
+REPO_BASE="${REPO_BASE:-https://raw.githubusercontent.com/Carlosjcfr/docker-develop/$GIT_BRANCH}"
+REPO_RAW="$REPO_BASE/projects/arcane"
 
 # =============================================================================
-# SHARED FUNCTIONS
+# SHARED LIBRARY
+# Source common functions: logging, guards, env bootstrap, validation.
+# Set LIB_LOCAL to an absolute path to use a local copy (development only).
 # =============================================================================
 
-root_protection() {
-    if [[ $EUID -eq 0 ]]; then
-        echo "-----------------------------------------------------------------"
-        echo " ERROR: DO NOT RUN THIS SCRIPT WITH SUDO"
-        echo "-----------------------------------------------------------------"
-        echo " To maintain a Rootless Podman installation, this script must be"
-        echo " executed as a normal user."
-        echo ""
-        echo " PLEASE RETRY WITH: bash arcane.sh"
-        echo "-----------------------------------------------------------------"
+_LIB_URL="$REPO_BASE/lib/lib.sh"
+# shellcheck source=../../lib/lib.sh
+if [[ -n "${LIB_LOCAL:-}" && -f "$LIB_LOCAL" ]]; then
+    source "$LIB_LOCAL"
+else
+    source <(curl -fsSL "$_LIB_URL") || {
+        echo "[ERROR] Could not download shared library from: $_LIB_URL" >&2
+        echo "        Check your network connection and try again." >&2
         exit 1
-    fi
-}
+    }
+fi
+unset _LIB_URL
 
-check_dependencies() {
-    for cmd in curl podman-compose; do
-        if ! command -v "$cmd" &> /dev/null; then
-            echo "ERROR: '$cmd' not found. Please install it before continuing." >&2
-            exit 1
-        fi
-    done
-}
+# =============================================================================
+# SERVICE-SPECIFIC FUNCTIONS
+# =============================================================================
 
 # Returns 0 if an existing Arcane installation is detected, 1 otherwise.
 check_existing_installation() {
@@ -50,46 +48,13 @@ check_existing_installation() {
     return 1
 }
 
-download_repo_files() {
-    TMP_DIR=$(mktemp -d)
-    trap 'rm -rf "$TMP_DIR"' EXIT
-
-    echo "Downloading files from repository..."
-    curl -fsSL "$REPO_RAW/config.env"         -o "$TMP_DIR/config.env"
-    curl -fsSL "$REPO_RAW/docker-compose.yml" -o "$TMP_DIR/docker-compose.yml"
-    echo "Files downloaded."
-}
-
-offer_interactive_mode() {
-    if [ -t 0 ]; then
-        echo ""
-        read -rp "Run in interactive mode? (customize all options) [y/N]: " INTERACTIVE
-        if [[ "$INTERACTIVE" =~ ^[Yy]$ ]]; then
-            echo "Downloading interactive configurator..."
-            curl -fsSL "$REPO_RAW/configure.sh" -o "$TMP_DIR/configure.sh"
-            bash "$TMP_DIR/configure.sh" "$TMP_DIR/config.env"
-        fi
-    fi
-}
-
 load_configuration() {
     # shellcheck source=/dev/null
     source "$TMP_DIR/config.env"
 
-    # Security check: abort if someone accidentally added secrets to config.env
-    for FORBIDDEN_VAR in ENCRYPTION_KEY JWT_SECRET; do
-        if grep -q "^${FORBIDDEN_VAR}=" "$TMP_DIR/config.env"; then
-            echo "-----------------------------------------------------------------"
-            echo " ERROR: SECRET DETECTED IN config.env"
-            echo "-----------------------------------------------------------------"
-            echo " '$FORBIDDEN_VAR' must NEVER be stored in the repository."
-            echo " Remove it from config.env — secrets are auto-generated."
-            echo "-----------------------------------------------------------------"
-            exit 1
-        fi
-    done
+    # Security guard: abort if a secret key is found in the repo config file
+    check_secrets_not_in_config "$TMP_DIR/config.env" ENCRYPTION_KEY JWT_SECRET
 
-    # Apply defaults for any variable left empty or unset
     INSTALL_DIR="${INSTALL_DIR:-/opt/arcane}"
     APP_PORT="${APP_PORT:-3552}"
     PACKAGE_VERSION="${PACKAGE_VERSION:-latest}"
@@ -108,73 +73,18 @@ load_configuration() {
     AGENT_MODE="${AGENT_MODE:-false}"
     AGENT_TOKEN="${AGENT_TOKEN:-}"
 
-    echo "Configuration loaded (INSTALL_DIR=$INSTALL_DIR, APP_PORT=$APP_PORT)."
-}
-
-detect_host_ip() {
-    if [ -z "${HOST_IP:-}" ]; then
-        INTERFACE=$(ip route | awk '/^default/ {print $5; exit}')
-        HOST_IP=$(ip -4 addr show "$INTERFACE" | grep -oP '(?<=inet\s)\d+(\.\d+){3}' | head -1)
-
-        if [ -z "$HOST_IP" ]; then
-            echo "ERROR: Could not determine the host IP address." >&2
-            echo "       Set HOST_IP in config.env (repo) and retry." >&2
-            exit 1
-        fi
-        echo "Host IP auto-detected: $HOST_IP"
-    else
-        echo "Host IP from config.env: $HOST_IP"
-    fi
-}
-
-manage_credentials() {
-    if [ -f "$INSTALL_DIR/.env" ] && grep -q "^ENCRYPTION_KEY=" "$INSTALL_DIR/.env"; then
-        echo "Existing secrets found. Reusing..."
-        ENCRYPTION_KEY=$(grep "^ENCRYPTION_KEY=" "$INSTALL_DIR/.env" | cut -d '=' -f2-)
-        JWT_SECRET=$(grep "^JWT_SECRET=" "$INSTALL_DIR/.env"          | cut -d '=' -f2-)
-    else
-        echo "First run detected. Generating secure encryption keys..."
-        set +o pipefail
-        ENCRYPTION_KEY=$(tr -dc 'a-f0-9' </dev/urandom | head -c 64)
-        JWT_SECRET=$(tr -dc 'a-f0-9'     </dev/urandom | head -c 64)
-        set -o pipefail
-    fi
-}
-
-setup_lingering_and_socket() {
-    PUID=$(id -u)
-    PGID=$(id -g)
-    USER_NAME=$(id -un)
-
-    echo "Ensuring user lingering is enabled..."
-    sudo loginctl enable-linger "$USER_NAME"
-
-    PODMAN_SOCK="/run/user/${PUID}/podman/podman.sock"
-
-    if [ ! -S "$PODMAN_SOCK" ]; then
-        echo "Podman socket not found. Attempting to enable and start it..."
-        systemctl --user enable --now podman.socket 2>/dev/null || true
-        for i in $(seq 1 10); do
-            [ -S "$PODMAN_SOCK" ] && break
-            sleep 1
-        done
-        if [ ! -S "$PODMAN_SOCK" ]; then
-            echo "ERROR: Could not start Podman socket at $PODMAN_SOCK" >&2
-            exit 1
-        fi
-        echo "Podman socket ready."
-    fi
+    log "Configuration loaded (INSTALL_DIR=$INSTALL_DIR, APP_PORT=$APP_PORT)."
 }
 
 generate_runtime_env() {
-    echo "Generating runtime .env file..."
+    log "Generating runtime .env file..."
     local OLD_UMASK
     OLD_UMASK=$(umask)
     umask 177
 
     cat <<EOF > "$INSTALL_DIR/.env"
 # =============================================================================
-# ARCANE - Runtime Environment Variables
+# ARCANE — Runtime Environment Variables
 # Auto-generated by arcane.sh — do NOT edit manually.
 # To change settings, edit config.env in the repository and re-run arcane.sh.
 # =============================================================================
@@ -216,36 +126,51 @@ AGENT_TOKEN="$AGENT_TOKEN"
 EOF
 
     umask "$OLD_UMASK"
-    echo ".env file ready (permissions 600)."
+    log ".env file ready (permissions 600)."
 }
 
 prepare_directories() {
-    echo "Preparing data directories..."
+    log "Preparing data directories..."
+    check_install_dir_writable "$INSTALL_DIR"
     mkdir -p "$INSTALL_DIR" "${INSTALL_DIR}/data" "${INSTALL_DIR}/projects"
     sudo chown -R "${PUID}:${PGID}" "${INSTALL_DIR}/data" "${INSTALL_DIR}/projects"
-    echo "Directories ready."
+    log "Directories ready."
 }
 
 deploy_and_persist() {
-    echo "Starting services with podman-compose..."
+    log "Starting services with podman-compose..."
     cd "$INSTALL_DIR"
+    # podman-compose up -d exits 0 even on total failure — verify_containers_running
+    # performs the real post-deploy check.
     podman-compose up -d
 
-    echo "Configuring systemd service for persistence..."
+    verify_containers_running arcane
+
+    log "Configuring systemd service for persistence..."
     mkdir -p ~/.config/systemd/user/
 
-    # Generate systemd unit in the current directory, then move it.
-    # Uses --new to recreate the container from the image on each service start.
-    # Compatible with Podman 4.x (no --dest or --restart-policy flags).
-    podman generate systemd --name arcane --files --new
-    mv -f container-arcane.service ~/.config/systemd/user/
+    # Handwritten unit — replaces deprecated 'podman generate systemd' (Podman 5+).
+    # Type=oneshot + RemainAfterExit=yes: compose forks and exits immediately, but
+    # containers keep running. systemd tracks the service as active until ExecStop runs.
+    cat <<EOF > ~/.config/systemd/user/container-arcane.service
+[Unit]
+Description=Arcane Container Management UI (podman-compose)
+Wants=network-online.target
+After=network-online.target
 
-    # Ensure the service restarts on failure via systemd override
-    mkdir -p ~/.config/systemd/user/container-arcane.service.d
-    cat <<EOF > ~/.config/systemd/user/container-arcane.service.d/restart.conf
 [Service]
-Restart=always
-RestartSec=10
+Type=oneshot
+RemainAfterExit=yes
+WorkingDirectory=$INSTALL_DIR
+ExecStart=$(command -v podman-compose) up -d
+ExecStop=$(command -v podman-compose) down
+TimeoutStartSec=120
+TimeoutStopSec=30
+Restart=on-failure
+RestartSec=15
+
+[Install]
+WantedBy=default.target
 EOF
 
     systemctl --user daemon-reload
@@ -276,17 +201,16 @@ do_install() {
     echo "=== ARCANE: Fresh Installation ==="
     echo ""
 
-    download_repo_files
+    download_repo_files "$REPO_RAW" config.env docker-compose.yml
     offer_interactive_mode
     load_configuration
     detect_host_ip
-    manage_credentials
+    manage_credentials "$INSTALL_DIR" ENCRYPTION_KEY JWT_SECRET
     setup_lingering_and_socket
     prepare_directories
 
-    # Move downloaded files into the install directory
-    mv "$TMP_DIR/config.env"         "$INSTALL_DIR/config.env"
-    mv "$TMP_DIR/docker-compose.yml" "$INSTALL_DIR/docker-compose.yml"
+    mv -f "$TMP_DIR/config.env"         "$INSTALL_DIR/config.env"
+    mv -f "$TMP_DIR/docker-compose.yml" "$INSTALL_DIR/docker-compose.yml"
 
     generate_runtime_env
     deploy_and_persist
@@ -299,18 +223,22 @@ do_start() {
     echo ""
 
     if systemctl --user is-active --quiet container-arcane.service 2>/dev/null; then
-        echo "Arcane is already running."
+        log "Arcane is already running."
     else
         systemctl --user start container-arcane.service
-        echo "Arcane started successfully."
+        log "Arcane started successfully."
     fi
 
+<<<<<<< HEAD
 <<<<<<< Updated upstream
     # Load INSTALL_DIR and HOST_IP from existing .env for the status message
+=======
+>>>>>>> 36ee57e496801692fc994b5c54cb6cd11deed35e
     if [ -f /opt/arcane/.env ]; then
         local ip port
         ip=$(grep "^HOST_IP=" /opt/arcane/.env | cut -d '=' -f2- || echo "unknown")
         port=$(grep "^APP_PORT=" /opt/arcane/.env | cut -d '=' -f2- || echo "3552")
+<<<<<<< HEAD
         echo "Access it at: http://$ip:$port"
 =======
     if [ -f "$INSTALL_DIR/.env" ]; then
@@ -319,6 +247,9 @@ do_start() {
         port=$(grep "^APP_PORT=" "$INSTALL_DIR/.env" | cut -d '=' -f2- || echo "3552")
         log "Access it at: http://$ip:$port"
 >>>>>>> Stashed changes
+=======
+        log "Access it at: http://$ip:$port"
+>>>>>>> 36ee57e496801692fc994b5c54cb6cd11deed35e
     fi
 }
 
@@ -327,22 +258,20 @@ do_update() {
     echo "=== ARCANE: Updating ==="
     echo ""
 
-    download_repo_files
+    download_repo_files "$REPO_RAW" config.env docker-compose.yml
     offer_interactive_mode
     load_configuration
     detect_host_ip
-    manage_credentials
+    manage_credentials "$INSTALL_DIR" ENCRYPTION_KEY JWT_SECRET
     setup_lingering_and_socket
     prepare_directories
 
-    # Move downloaded files into the install directory
-    mv "$TMP_DIR/config.env"         "$INSTALL_DIR/config.env"
-    mv "$TMP_DIR/docker-compose.yml" "$INSTALL_DIR/docker-compose.yml"
+    mv -f "$TMP_DIR/config.env"         "$INSTALL_DIR/config.env"
+    mv -f "$TMP_DIR/docker-compose.yml" "$INSTALL_DIR/docker-compose.yml"
 
     generate_runtime_env
 
-    # Pull latest image before redeploying
-    echo "Pulling latest Arcane image..."
+    log "Pulling latest Arcane image..."
     cd "$INSTALL_DIR"
     podman-compose pull
 
@@ -351,52 +280,16 @@ do_update() {
 }
 
 do_uninstall() {
-    echo ""
-    echo "=== ARCANE: Uninstall ==="
-    echo ""
-    echo " WARNING: This will permanently remove:"
-    echo "   - The Arcane container and its image"
-    echo "   - The systemd persistence service"
-    echo ""
+    INSTALL_DIR="${INSTALL_DIR:-/opt/arcane}"
+    UNINSTALL_SVC_NAME="ARCANE"
+    UNINSTALL_SYSTEMD="container-arcane.service"
+    UNINSTALL_CONTAINERS=("arcane")
+    UNINSTALL_IMAGES=("ghcr.io/getarcaneapp/arcane:${PACKAGE_VERSION:-latest}")
+    UNINSTALL_VOLUMES=()
+    UNINSTALL_DIRS=("${INSTALL_DIR}/data" "${INSTALL_DIR}/projects")
+    UNINSTALL_DATA_WARN="WARNING: Internal database and all arcane projects will be lost!"
 
-    # Double confirmation (mitigation for accidental selection)
-    read -rp " Type 'UNINSTALL' to confirm: " CONFIRM
-    if [ "$CONFIRM" != "UNINSTALL" ]; then
-        echo "Uninstall cancelled."
-        exit 0
-    fi
-
-    echo ""
-    echo "Stopping Arcane container..."
-    systemctl --user stop container-arcane.service 2>/dev/null || true
-    systemctl --user disable container-arcane.service 2>/dev/null || true
-    rm -f ~/.config/systemd/user/container-arcane.service
-    systemctl --user daemon-reload
-
-    echo "Removing container..."
-    podman rm -f arcane 2>/dev/null || true
-
-    echo "Removing Arcane image..."
-    podman rmi "ghcr.io/getarcaneapp/arcane:${PACKAGE_VERSION:-latest}" 2>/dev/null || true
-
-    # Ask about data removal
-    echo ""
-    read -rp " Also delete all data (/opt/arcane/data, /opt/arcane/projects)? [y/N]: " DELETE_DATA
-    if [[ "$DELETE_DATA" =~ ^[Yy]$ ]]; then
-        echo "Removing data directories..."
-        rm -rf /opt/arcane/data /opt/arcane/projects
-        echo "Data removed."
-    else
-        echo "Data preserved at /opt/arcane/data and /opt/arcane/projects."
-    fi
-
-    # Clean up config files but leave data if user chose to keep it
-    rm -f /opt/arcane/.env /opt/arcane/config.env /opt/arcane/docker-compose.yml
-
-    echo ""
-    echo "================================================================="
-    echo " ARCANE has been uninstalled."
-    echo "================================================================="
+    uninstall_generic_service
 }
 
 # =============================================================================
@@ -404,15 +297,26 @@ do_uninstall() {
 # =============================================================================
 
 root_protection
-check_dependencies
+check_dependencies curl podman-compose
 
-# Detect existing installation (default path for quick check)
+parse_args "$@"
+
+if [ -n "$CMD_ACTION" ]; then
+    case "$CMD_ACTION" in
+        install)   do_install ;;
+        start)     do_start ;;
+        update)    do_update ;;
+        uninstall) do_uninstall ;;
+        *) err "Invalid action."; exit 1 ;;
+    esac
+    exit 0
+fi
+
 if check_existing_installation "/opt/arcane"; then
-    if [ -t 0 ]; then
-        # Interactive terminal → show management menu
+    if [ -t 0 ] && [ "$FORCE_YES" -eq 0 ]; then
         echo ""
         echo "================================================================="
-        echo " ARCANE - Management"
+        echo " ARCANE — Management"
         echo "================================================================="
         echo " Existing installation detected at /opt/arcane"
         echo ""
@@ -427,15 +331,13 @@ if check_existing_installation "/opt/arcane"; then
             1) do_start ;;
             2) do_update ;;
             3) do_uninstall ;;
-            0) echo "Cancelled."; exit 0 ;;
-            *) echo "Invalid option."; exit 1 ;;
+            0) log "Cancelled."; exit 0 ;;
+            *) err "Invalid option."; exit 1 ;;
         esac
     else
-        # Non-interactive (curl | bash) → auto-update
-        echo "Existing installation detected. Running automatic update..."
+        log "Existing installation detected. Running automatic update..."
         do_update
     fi
 else
-    # No existing installation → fresh install
     do_install
 fi
