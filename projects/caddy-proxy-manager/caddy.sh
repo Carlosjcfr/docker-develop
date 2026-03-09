@@ -13,11 +13,7 @@ set -euo pipefail
 # Re-running this script on an existing installation is safe.
 # ==============================================================================
 
-<<<<<<< HEAD
 REPO_RAW="https://raw.githubusercontent.com/Carlosjcfr/docker-develop/caddy-manager-proxy"
-=======
-REPO_RAW="https://raw.githubusercontent.com/Carlosjcfr/docker-develop/caddy"
->>>>>>> 339c7dd3d2bf8344764f555f74f6b8b3efb4bd4b
 
 # =============================================================================
 # SHARED FUNCTIONS
