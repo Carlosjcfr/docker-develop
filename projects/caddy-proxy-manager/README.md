@@ -2,64 +2,6 @@
 
 Caddy reverse proxy with CaddyManager Web UI, deployed with Podman rootless.
 
-## Requirements
-
-- Podman (rootless) + `podman-compose`
-- `curl`
-- `sudo` access (for enabling privileged ports and lingering)
-
-## Install
-
-**1. Prepare the installation directory** *(only if `/opt` is not writable by your user)*
-
-```bash
-sudo mkdir -p /opt/caddy && sudo chown admin:admin /opt/caddy
-```
-
-**2. Run the installer**
-
-```bash
-curl -fsSL "https://raw.githubusercontent.com/Carlosjcfr/docker-develop/caddy-manager-proxy/projects/caddy-proxy-manager/caddy.sh" \
-  -o /tmp/caddy.sh && bash /tmp/caddy.sh
-```
-
-> ⚠️ **Do NOT run with `sudo`.** The script must run as a normal user. It will
-> request `sudo` internally for: enabling privileged ports (80/443) and user lingering.
-
-### What does the script do with `sudo`?
-
-| Command | Purpose | When |
-| :--- | :--- | :--- |
-| `sudo sysctl -w net.ipv4.ip_unprivileged_port_start=0` | Allow rootless Podman to bind ports 80/443 | First install |
-| `sudo tee /etc/sysctl.d/99-unprivileged-ports.conf` | Persist the above across reboots | First install |
-| `sudo loginctl enable-linger $USER` | Keep containers running after SSH logout | Every run |
-
-## Management
-
-When an existing installation is detected, `caddy.sh` shows a management menu:
-
-```text
- CADDY PROXY + MANAGER — Management
- Existing installation detected at /opt/caddy
-
-   1) Start      — Start the existing services
-   2) Update     — Download latest config and redeploy
-   3) Uninstall  — Remove containers, service, and data
-   0) Cancel
-```
-
-- **Via `curl | bash`** with existing installation → runs Update automatically.
-- **Uninstall** requires typing `UNINSTALL` to confirm, with a separate prompt
-  before deleting TLS certificates and data volumes.
-
-### Interactive mode
-
-During Install or Update, if running from a terminal:
-
-```text
-Run in interactive mode? (customize all options) [y/N]:
-```
-
 ## Configuration
 
 All configurable variables are defined in `config.env` **in the repository**.
@@ -68,7 +10,8 @@ All configurable variables are defined in `config.env` **in the repository**.
 | :--- | :--- | :--- |
 | `INSTALL_DIR` | `/opt/caddy` | Installation path |
 | `HOST_IP` | *(auto-detect)* | Host IP |
-| `CADDY_VERSION` | `2` | Caddy image tag |
+| `CADDY_VERSION` | `2.11-alpine` | Caddy image tag |
+| `PACKAGE_VERSION`| `0.0.2` | CaddyManager image tag |
 | `ACME_EMAIL` | `you@example.com` | Let's Encrypt email |
 | `CADDYMANAGER_UI_PORT` | `8080` | Web UI port |
 | `APP_NAME` | `Caddy Manager` | UI display name |
@@ -95,22 +38,6 @@ Password: caddyrocks
 
 ⚠️ Change these immediately after the first login via the CaddyManager UI.
 
-## Useful commands
-
-```bash
-# Service status
-systemctl --user status caddy-compose.service
-
-# Caddy logs
-podman logs -f caddy
-
-# CaddyManager backend logs
-podman logs -f caddymanager-backend
-
-# Restart all services
-systemctl --user restart caddy-compose.service
-```
-
 ## Directory structure
 
 ```text
@@ -130,3 +57,17 @@ systemctl --user restart caddy-compose.service
 | `caddy_data` | TLS certificates and ACME state | ❌ **Never** |
 | `caddy_config` | Caddy runtime config | ⚠️ Only if resetting |
 | `caddymanager_sqlite` | CaddyManager database | ⚠️ Loses users and config |
+
+## Useful commands
+
+```bash
+# Service status
+systemctl --user status caddy-compose.service
+
+# Caddy logs
+podman logs -f caddy
+podman logs -f caddymanager-backend
+
+# Restart all services
+systemctl --user restart caddy-compose.service
+```
