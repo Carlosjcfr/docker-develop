@@ -120,7 +120,7 @@ while true; do
     echo "═══════════════════════════════════════════════════════════════════"
     echo ""
 
-    read -rp " Select a service [0-${#REGISTRY[@]}]: " CHOICE
+    read -rp " Select a service [0-${#REGISTRY[@]}]: " CHOICE < /dev/tty
 
     # Validate input
     if [[ "$CHOICE" == "0" ]]; then
@@ -177,7 +177,8 @@ while true; do
         continue
     fi
 
-    bash "$TMP_SCRIPT"
+    # Execute the service script attached to the terminal
+    bash "$TMP_SCRIPT" < /dev/tty
     EXIT_CODE=$?
 
     # Clean up and reset trap before looping back to the main menu
@@ -193,6 +194,6 @@ while true; do
     esac
 
     echo ""
-    read -rp " Press ENTER to return to the service list..." _PAUSE
+    read -rp " Press ENTER to return to the service list..." _PAUSE < /dev/tty
 
 done
