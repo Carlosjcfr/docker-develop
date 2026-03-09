@@ -242,19 +242,9 @@ do_start() {
 
     if [ -f "$INSTALL_DIR/.env" ]; then
         local ip ui_port
-<<<<<<< Updated upstream
-        ip=$(grep "^HOST_IP=" /opt/caddy/.env | cut -d '=' -f2- || echo "unknown")
-        ui_port=$(grep "^CADDYMANAGER_UI_PORT=" /opt/caddy/.env | cut -d '=' -f2- || echo "8080")
-<<<<<<< HEAD
-        echo "CaddyManager UI: http://$ip:$ui_port"
-=======
         ip=$(grep "^HOST_IP=" "$INSTALL_DIR/.env" | cut -d '=' -f2- || echo "unknown")
         ui_port=$(grep "^CADDYMANAGER_UI_PORT=" "$INSTALL_DIR/.env" | cut -d '=' -f2- || echo "8080")
         log "CaddyManager UI: http://$ip:$ui_port"
->>>>>>> Stashed changes
-=======
-        log "CaddyManager UI: http://$ip:$ui_port"
->>>>>>> 36ee57e496801692fc994b5c54cb6cd11deed35e
     fi
 }
 

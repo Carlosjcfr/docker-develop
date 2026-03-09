@@ -229,27 +229,11 @@ do_start() {
         log "Arcane started successfully."
     fi
 
-<<<<<<< HEAD
-<<<<<<< Updated upstream
-    # Load INSTALL_DIR and HOST_IP from existing .env for the status message
-=======
->>>>>>> 36ee57e496801692fc994b5c54cb6cd11deed35e
-    if [ -f /opt/arcane/.env ]; then
-        local ip port
-        ip=$(grep "^HOST_IP=" /opt/arcane/.env | cut -d '=' -f2- || echo "unknown")
-        port=$(grep "^APP_PORT=" /opt/arcane/.env | cut -d '=' -f2- || echo "3552")
-<<<<<<< HEAD
-        echo "Access it at: http://$ip:$port"
-=======
     if [ -f "$INSTALL_DIR/.env" ]; then
         local ip port
         ip=$(grep "^HOST_IP=" "$INSTALL_DIR/.env" | cut -d '=' -f2- || echo "unknown")
         port=$(grep "^APP_PORT=" "$INSTALL_DIR/.env" | cut -d '=' -f2- || echo "3552")
         log "Access it at: http://$ip:$port"
->>>>>>> Stashed changes
-=======
-        log "Access it at: http://$ip:$port"
->>>>>>> 36ee57e496801692fc994b5c54cb6cd11deed35e
     fi
 }
 
