@@ -11,6 +11,9 @@ Install any service with a single command — no prerequisites, no configuration
 
 ```bash
 curl -fsSL "https://raw.githubusercontent.com/Carlosjcfr/docker-develop/main/deploy.sh" | bash
+
+# To test a specific branch (e.g. 'dev-branch'):
+# curl -fsSL "https://raw.githubusercontent.com/Carlosjcfr/docker-develop/dev-branch/deploy.sh" | GIT_BRANCH=dev-branch bash
 ```
 
 This opens an interactive menu listing all available services and their current installation status.
@@ -123,12 +126,10 @@ If you prefer to install a specific service directly:
 
 ```bash
 # Caddy Proxy + Manager
-curl -fsSL "https://raw.githubusercontent.com/Carlosjcfr/docker-develop/caddy-manager-proxy/projects/caddy-proxy-manager/caddy.sh" \
-  -o /tmp/caddy.sh && bash /tmp/caddy.sh
+curl -fsSL "https://raw.githubusercontent.com/Carlosjcfr/docker-develop/main/projects/caddy-proxy-manager/caddy.sh" | bash
 
 # Arcane
-curl -fsSL "https://raw.githubusercontent.com/Carlosjcfr/docker-develop/main/projects/arcane/arcane.sh" \
-  -o /tmp/arcane.sh && bash /tmp/arcane.sh
+curl -fsSL "https://raw.githubusercontent.com/Carlosjcfr/docker-develop/main/projects/arcane/arcane.sh" | bash
 ```
 
 Re-running the script on an already-installed service shows the management menu
@@ -187,7 +188,14 @@ Run in interactive mode? (customize all options) [y/N]: y
 Alternatively, override settings via environment variables — no file editing needed:
 
 ```bash
-CADDYMANAGER_UI_PORT=9090 ACME_EMAIL=ops@example.com bash /tmp/caddy.sh
+CADDYMANAGER_UI_PORT=9090 ACME_EMAIL=ops@example.com bash caddy.sh --install
+```
+
+### Developing and Testing Branches
+The scripts dynamically map repositories. To test your branch without merging to `main`, use the `GIT_BRANCH` variable. Pass it explicitly to `bash` when piping:
+
+```bash
+curl -fsSL "https://raw.githubusercontent.com/.../my-branch/deploy.sh" | GIT_BRANCH=my-branch bash
 ```
 
 ---
