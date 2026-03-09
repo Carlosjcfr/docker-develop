@@ -13,7 +13,7 @@ set -euo pipefail
 # Re-running this script on an existing installation is safe.
 # ==============================================================================
 
-REPO_RAW="https://raw.githubusercontent.com/Carlosjcfr/docker-develop/main/projects/caddy-proxy%26manager"
+REPO_RAW="https://raw.githubusercontent.com/Carlosjcfr/docker-develop/main/projects/caddy-proxy-manager"
 
 # =============================================================================
 # SHARED FUNCTIONS
@@ -60,8 +60,7 @@ download_repo_files() {
     curl -fsSL "$REPO_RAW/docker-compose.yml" -o "$TMP_DIR/docker-compose.yml"
 
     # Download Caddyfile only to tmp — will be placed only on first install
-    mkdir -p "$TMP_DIR/conf"
-    curl -fsSL "$REPO_RAW/conf/Caddyfile"     -o "$TMP_DIR/conf/Caddyfile"
+    curl -fsSL "$REPO_RAW/Caddyfile"           -o "$TMP_DIR/Caddyfile"
 
     echo "Files downloaded."
 }
@@ -253,10 +252,9 @@ prepare_directories() {
     mv -f "$TMP_DIR/docker-compose.yml" "$INSTALL_DIR/docker-compose.yml"
 
     # Caddyfile: only place on first install to preserve user customizations
-    mkdir -p "$INSTALL_DIR/conf"
-    if [ ! -f "$INSTALL_DIR/conf/Caddyfile" ]; then
-        mv "$TMP_DIR/conf/Caddyfile" "$INSTALL_DIR/conf/Caddyfile"
-        echo "Default Caddyfile placed in $INSTALL_DIR/conf/"
+    if [ ! -f "$INSTALL_DIR/Caddyfile" ]; then
+        mv "$TMP_DIR/Caddyfile" "$INSTALL_DIR/Caddyfile"
+        echo "Default Caddyfile placed in $INSTALL_DIR/"
     else
         echo "Existing Caddyfile preserved (not overwritten)."
     fi

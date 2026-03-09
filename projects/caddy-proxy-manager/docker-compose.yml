@@ -28,8 +28,8 @@ services:
       - "443:443/udp" # HTTP/3 (QUIC)
 
     volumes:
-      # Caddyfile config directory — place your Caddyfile inside ./conf/
-      - ./conf:/etc/caddy:Z
+      # Caddyfile — mounted as a single file into the container
+      - ./Caddyfile:/etc/caddy/Caddyfile:Z
       # Static site files (optional — remove if not serving static content)
       - ./site:/srv:Z
       # Caddy TLS certificates and ACME state (must be persistent)
