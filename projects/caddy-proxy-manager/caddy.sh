@@ -94,7 +94,7 @@ load_configuration() {
 
     # Apply defaults for any variable left empty or unset
     INSTALL_DIR="${INSTALL_DIR:-/opt/caddy}"
-    CADDY_VERSION="${CADDY_VERSION:-2}"
+    CADDY_VERSION="${CADDY_VERSION:-ci-alpine}"
     ACME_EMAIL="${ACME_EMAIL:-you@example.com}"
     PACKAGE_VERSION="${PACKAGE_VERSION:-latest}"
     CADDYMANAGER_UI_PORT="${CADDYMANAGER_UI_PORT:-8080}"
@@ -211,6 +211,7 @@ generate_runtime_env() {
 HOST_IP=$HOST_IP
 PUID=$PUID
 PGID=$PGID
+PODMAN_SOCK=$PODMAN_SOCK
 
 # --- Caddy Proxy ---
 CADDY_VERSION=$CADDY_VERSION
@@ -414,7 +415,7 @@ do_uninstall() {
     podman rm -f caddy caddymanager-backend caddymanager-frontend 2>/dev/null || true
 
     echo "Removing images..."
-    podman rmi "caddy:${CADDY_VERSION:-2}" 2>/dev/null || true
+    podman rmi "lucaslorentz/caddy-docker-proxy:${CADDY_VERSION:-ci-alpine}" 2>/dev/null || true
     podman rmi "caddymanager/caddymanager-backend:${PACKAGE_VERSION:-latest}" 2>/dev/null || true
     podman rmi "caddymanager/caddymanager-frontend:${PACKAGE_VERSION:-latest}" 2>/dev/null || true
 

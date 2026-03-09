@@ -16,7 +16,7 @@ BASE_CONFIG="${1:-config.env}"
 # --- Load defaults from base config.env if available --------------------------
 INSTALL_DIR="/opt/caddy"
 HOST_IP=""
-CADDY_VERSION="2"
+CADDY_VERSION="ci-alpine"
 ACME_EMAIL="you@example.com"
 PACKAGE_VERSION="latest"
 CADDYMANAGER_UI_PORT="8080"
