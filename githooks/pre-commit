@@ -1,0 +1,19 @@
+#!/bin/bash
+# Pre-commit hook to auto-compile lib.sh
+
+echo "📦 Running lib/lib.sh compiler before commit..."
+
+if [ -f "lib/build.sh" ]; then
+    bash "lib/build.sh"
+    
+    # Check if lib/lib.sh has actually changed. If it has, add the new compiled version to the index
+    if git diff --stat --cached -- lib/lib.sh; then
+        echo "✅ lib/lib.sh was updated and added to the commit."
+    fi
+    git add lib/lib.sh
+else
+    echo "⚠️ Warning: build script not found at lib/build.sh"
+fi
+
+# Let the commit proceed
+exit 0
