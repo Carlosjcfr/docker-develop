@@ -283,3 +283,65 @@ verify_containers_running() {
 
     log "All containers running."
 }
+
+# =============================================================================
+# HTTP HEALTH CHECKS  (F3.4)
+# =============================================================================
+
+# Poll an HTTP endpoint until it responds (HTTP 2xx) or timeout is reached.
+# Provides application-level validation beyond container state checks.
+# Usage: poll_http URL [TIMEOUT_SECONDS] [RETRY_INTERVAL_SECONDS]
+# Returns: 0 if endpoint responds within timeout, exits 3 otherwise.
+poll_http() {
+    local url="${1:?poll_http requires a URL}"
+    local timeout="${2:-30}"
+    local interval="${3:-2}"
+    local elapsed=0
+
+    log "Waiting for $url ..."
+    while [ "$elapsed" -lt "$timeout" ]; do
+        if curl -sf --max-time "$interval" "$url" >/dev/null 2>&1; then
+            log "  ✓ $url"
+            return 0
+        fi
+        sleep "$interval"
+        elapsed=$((elapsed + interval))
+    done
+
+    err "Endpoint did not respond within ${timeout}s: $url"
+    return 1
+}
+
+# Run HTTP health checks for a set of named endpoints.
+# Aborts with exit 3 if any endpoint fails after its timeout.
+# Usage: check_http_health "label|url|timeout" ["label|url|timeout" ...]
+# Example: check_http_health "Caddy Admin|http://127.0.0.1:2019/config/|20"
+check_http_health() {
+    local -a FAILED=()
+
+    log "Running HTTP health checks..."
+    for entry in "$@"; do
+        local label url timeout
+        IFS='|' read -r label url timeout <<< "$entry"
+        timeout="${timeout:-30}"
+        if ! poll_http "$url" "$timeout" 2 2>/dev/null; then
+            FAILED+=("  ✗ $label  ($url)")
+        fi
+    done
+
+    if [[ ${#FAILED[@]} -gt 0 ]]; then
+        echo ""
+        echo "-----------------------------------------------------------------"
+        echo " ERROR [exit 3]: HEALTH CHECKS FAILED — services not responding"
+        echo "-----------------------------------------------------------------"
+        printf '%s\n' "${FAILED[@]}"
+        echo ""
+        echo " The containers are running but the applications inside are not"
+        echo " responding. Check the container logs for startup errors:"
+        echo "   podman logs <container-name>"
+        echo "-----------------------------------------------------------------"
+        exit 3
+    fi
+
+    log "All health checks passed."
+}
