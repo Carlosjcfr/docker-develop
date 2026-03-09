@@ -92,6 +92,7 @@ load_configuration() {
     # Apply defaults for any variable left empty or unset
     INSTALL_DIR="${INSTALL_DIR:-/opt/arcane}"
     APP_PORT="${APP_PORT:-3552}"
+    PACKAGE_VERSION="${PACKAGE_VERSION:-latest}"
     LOG_LEVEL="${LOG_LEVEL:-info}"
     ENVIRONMENT="${ENVIRONMENT:-production}"
     GIN_MODE="${GIN_MODE:-release}"
@@ -189,6 +190,7 @@ ENCRYPTION_KEY=$ENCRYPTION_KEY
 JWT_SECRET=$JWT_SECRET
 
 # --- Application (from config.env) ---
+PACKAGE_VERSION=$PACKAGE_VERSION
 ENVIRONMENT=$ENVIRONMENT
 GIN_MODE=$GIN_MODE
 LOG_LEVEL=$LOG_LEVEL
@@ -367,7 +369,7 @@ do_uninstall() {
     podman rm -f arcane 2>/dev/null || true
 
     echo "Removing Arcane image..."
-    podman rmi ghcr.io/getarcaneapp/arcane:latest 2>/dev/null || true
+    podman rmi "ghcr.io/getarcaneapp/arcane:${PACKAGE_VERSION:-latest}" 2>/dev/null || true
 
     # Ask about data removal
     echo ""

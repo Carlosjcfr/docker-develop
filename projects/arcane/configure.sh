@@ -17,6 +17,7 @@ BASE_CONFIG="${1:-config.env}"
 INSTALL_DIR="/opt/arcane"
 HOST_IP=""
 APP_PORT="3552"
+PACKAGE_VERSION="latest"
 ENVIRONMENT="production"
 GIN_MODE="release"
 LOG_LEVEL="info"
@@ -66,6 +67,7 @@ APP_PORT=$(ask "Web UI port" "$APP_PORT")
 
 echo ""
 echo " ── Application ──"
+PACKAGE_VERSION=$(ask "Package image version tag" "$PACKAGE_VERSION")
 ENVIRONMENT=$(ask "Environment (production/development)" "$ENVIRONMENT")
 GIN_MODE=$(ask "Framework mode (release/debug)" "$GIN_MODE")
 LOG_LEVEL=$(ask "Log level (debug/info/warn/error)" "$LOG_LEVEL")
@@ -115,6 +117,7 @@ APP_PORT=$APP_PORT
 
 # --- Application --------------------------------------------------------------
 
+PACKAGE_VERSION=$PACKAGE_VERSION
 ENVIRONMENT=$ENVIRONMENT
 GIN_MODE=$GIN_MODE
 LOG_LEVEL=$LOG_LEVEL

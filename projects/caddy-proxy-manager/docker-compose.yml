@@ -46,7 +46,7 @@ services:
 
   # ── CaddyManager Backend (API) ─────────────────────────────────────────────
   caddymanager-backend:
-    image: caddymanager/caddymanager-backend:latest
+    image: caddymanager/caddymanager-backend:${PACKAGE_VERSION:-latest}
     container_name: caddymanager-backend
     restart: unless-stopped
 
@@ -92,7 +92,7 @@ services:
 
   # ── CaddyManager Frontend (Web UI) ─────────────────────────────────────────
   caddymanager-frontend:
-    image: caddymanager/caddymanager-frontend:latest
+    image: caddymanager/caddymanager-frontend:${PACKAGE_VERSION:-latest}
     container_name: caddymanager-frontend
     restart: unless-stopped
 

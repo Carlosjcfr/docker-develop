@@ -18,6 +18,7 @@ INSTALL_DIR="/opt/caddy"
 HOST_IP=""
 CADDY_VERSION="2"
 ACME_EMAIL="you@example.com"
+PACKAGE_VERSION="latest"
 CADDYMANAGER_UI_PORT="8080"
 APP_NAME="Caddy Manager"
 DARK_MODE="true"
@@ -69,6 +70,7 @@ ACME_EMAIL=$(ask "ACME email (Let's Encrypt notifications)" "$ACME_EMAIL")
 
 echo ""
 echo " ── CaddyManager UI ──"
+PACKAGE_VERSION=$(ask "CaddyManager image version tag" "$PACKAGE_VERSION")
 CADDYMANAGER_UI_PORT=$(ask "Web UI port" "$CADDYMANAGER_UI_PORT")
 APP_NAME=$(ask "Application display name" "$APP_NAME")
 DARK_MODE=$(ask "Dark mode (true/false)" "$DARK_MODE")
@@ -117,6 +119,7 @@ ACME_EMAIL=$ACME_EMAIL
 
 # --- CaddyManager UI ---------------------------------------------------------
 
+PACKAGE_VERSION=$PACKAGE_VERSION
 CADDYMANAGER_UI_PORT=$CADDYMANAGER_UI_PORT
 APP_NAME=$APP_NAME
 DARK_MODE=$DARK_MODE

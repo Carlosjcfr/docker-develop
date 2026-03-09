@@ -7,7 +7,7 @@
 
 services:
   arcane:
-    image: ghcr.io/getarcaneapp/arcane:latest
+    image: ghcr.io/getarcaneapp/arcane:${PACKAGE_VERSION:-latest}
     container_name: arcane
     restart: unless-stopped
 
