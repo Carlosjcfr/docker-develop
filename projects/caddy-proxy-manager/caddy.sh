@@ -94,9 +94,9 @@ load_configuration() {
 
     # Apply defaults for any variable left empty or unset
     INSTALL_DIR="${INSTALL_DIR:-/opt/caddy}"
-    CADDY_VERSION="${CADDY_VERSION:-ci-alpine}"
+    CADDY_VERSION="${CADDY_VERSION:-2.11-alpine}"
     ACME_EMAIL="${ACME_EMAIL:-you@example.com}"
-    PACKAGE_VERSION="${PACKAGE_VERSION:-latest}"
+    PACKAGE_VERSION="${PACKAGE_VERSION:-0.0.2}"
     CADDYMANAGER_UI_PORT="${CADDYMANAGER_UI_PORT:-8080}"
     APP_NAME="${APP_NAME:-Caddy Manager}"
     DARK_MODE="${DARK_MODE:-true}"
@@ -415,9 +415,9 @@ do_uninstall() {
     podman rm -f caddy caddymanager-backend caddymanager-frontend 2>/dev/null || true
 
     echo "Removing images..."
-    podman rmi "lucaslorentz/caddy-docker-proxy:${CADDY_VERSION:-ci-alpine}" 2>/dev/null || true
-    podman rmi "caddymanager/caddymanager-backend:${PACKAGE_VERSION:-latest}" 2>/dev/null || true
-    podman rmi "caddymanager/caddymanager-frontend:${PACKAGE_VERSION:-latest}" 2>/dev/null || true
+    podman rmi "lucaslorentz/caddy-docker-proxy:${CADDY_VERSION:-2.11-alpine}" 2>/dev/null || true
+    podman rmi "caddymanager/caddymanager-backend:${PACKAGE_VERSION:-0.0.2}" 2>/dev/null || true
+    podman rmi "caddymanager/caddymanager-frontend:${PACKAGE_VERSION:-0.0.2}" 2>/dev/null || true
 
     # Ask about data removal
     echo ""
