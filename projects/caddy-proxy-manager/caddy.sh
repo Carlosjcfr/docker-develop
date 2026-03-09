@@ -13,7 +13,9 @@ set -euo pipefail
 # Re-running this script on an existing installation is safe.
 # ==============================================================================
 
-REPO_RAW="https://raw.githubusercontent.com/Carlosjcfr/docker-develop/caddy-manager-proxy/projects/caddy-proxy-manager"
+GIT_BRANCH="${GIT_BRANCH:-main}"
+REPO_BASE="${REPO_BASE:-https://raw.githubusercontent.com/Carlosjcfr/docker-develop/$GIT_BRANCH}"
+REPO_RAW="$REPO_BASE/projects/caddy-proxy-manager"
 
 # =============================================================================
 # SHARED LIBRARY
@@ -21,7 +23,7 @@ REPO_RAW="https://raw.githubusercontent.com/Carlosjcfr/docker-develop/caddy-mana
 # Set LIB_LOCAL to an absolute path to use a local copy (development only).
 # =============================================================================
 
-_LIB_URL="https://raw.githubusercontent.com/Carlosjcfr/docker-develop/main/lib/lib.sh"
+_LIB_URL="$REPO_BASE/lib/lib.sh"
 # shellcheck source=../../lib/lib.sh
 if [[ -n "${LIB_LOCAL:-}" && -f "$LIB_LOCAL" ]]; then
     source "$LIB_LOCAL"
