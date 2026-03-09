@@ -111,34 +111,34 @@ cat <<EOF > "$OUTPUT_FILE"
 
 # --- Deployment ---------------------------------------------------------------
 
-INSTALL_DIR=$INSTALL_DIR
-HOST_IP=$HOST_IP
-APP_PORT=$APP_PORT
+INSTALL_DIR="$INSTALL_DIR"
+HOST_IP="$HOST_IP"
+APP_PORT="$APP_PORT"
 
 # --- Application --------------------------------------------------------------
 
-PACKAGE_VERSION=$PACKAGE_VERSION
-ENVIRONMENT=$ENVIRONMENT
-GIN_MODE=$GIN_MODE
-LOG_LEVEL=$LOG_LEVEL
-TZ=$TZ
+PACKAGE_VERSION="$PACKAGE_VERSION"
+ENVIRONMENT="$ENVIRONMENT"
+GIN_MODE="$GIN_MODE"
+LOG_LEVEL="$LOG_LEVEL"
+TZ="$TZ"
 
 # --- Security -----------------------------------------------------------------
 
-JWT_REFRESH_EXPIRY=$JWT_REFRESH_EXPIRY
-FILE_PERM=$FILE_PERM
-DIR_PERM=$DIR_PERM
+JWT_REFRESH_EXPIRY="$JWT_REFRESH_EXPIRY"
+FILE_PERM="$FILE_PERM"
+DIR_PERM="$DIR_PERM"
 
 # --- TLS ----------------------------------------------------------------------
 
-TLS_ENABLED=$TLS_ENABLED
-TLS_CERT_FILE=$TLS_CERT_FILE
-TLS_KEY_FILE=$TLS_KEY_FILE
+TLS_ENABLED="$TLS_ENABLED"
+TLS_CERT_FILE="$TLS_CERT_FILE"
+TLS_KEY_FILE="$TLS_KEY_FILE"
 
 # --- Agent Mode ---------------------------------------------------------------
 
-AGENT_MODE=$AGENT_MODE
-AGENT_TOKEN=$AGENT_TOKEN
+AGENT_MODE="$AGENT_MODE"
+AGENT_TOKEN="$AGENT_TOKEN"
 EOF
 
 echo ""

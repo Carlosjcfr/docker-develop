@@ -16,20 +16,18 @@
 
 services:
 
-  # ── Caddy Reverse Proxy (with Docker Auto-Discovery) ──────────────────────
+  # ── Caddy Reverse Proxy ────────────────────────────────────────────────────
   caddy:
-    image: lucaslorentz/caddy-docker-proxy:${CADDY_VERSION:-ci-alpine}
+    image: caddy:${CADDY_VERSION:-2}
     container_name: caddy
     restart: unless-stopped
 
     ports:
-      - "80:80"       # HTTP
-      - "443:443"     # HTTPS
+      - "80:80" # HTTP
+      - "443:443" # HTTPS
       - "443:443/udp" # HTTP/3 (QUIC)
 
     volumes:
-      # Podman rootless socket — mapped as Docker socket for auto-discovery
-      - ${PODMAN_SOCK}:/var/run/docker.sock:Z
       # Caddyfile — mounted as a single file into the container
       - ./Caddyfile:/etc/caddy/Caddyfile:Z
       # Static site files (optional — remove if not serving static content)
