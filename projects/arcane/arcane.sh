@@ -270,7 +270,11 @@ do_uninstall() {
     echo "   - The systemd persistence service"
     echo ""
 
-    read -rp " Type 'UNINSTALL' to confirm: " CONFIRM
+    if [ "$FORCE_YES" -eq 1 ]; then
+        CONFIRM="UNINSTALL"
+    else
+        read -rp " Type 'UNINSTALL' to confirm: " CONFIRM
+    fi
     if [ "$CONFIRM" != "UNINSTALL" ]; then
         log "Uninstall cancelled."
         exit 0
@@ -290,7 +294,11 @@ do_uninstall() {
     podman rmi "ghcr.io/getarcaneapp/arcane:${PACKAGE_VERSION:-latest}" 2>/dev/null || true
 
     echo ""
-    read -rp " Also delete all data (/opt/arcane/data, /opt/arcane/projects)? [y/N]: " DELETE_DATA
+    if [ "$FORCE_YES" -eq 1 ]; then
+        DELETE_DATA="y"
+    else
+        read -rp " Also delete all data (/opt/arcane/data, /opt/arcane/projects)? [y/N]: " DELETE_DATA
+    fi
     if [[ "$DELETE_DATA" =~ ^[Yy]$ ]]; then
         log "Removing data directories..."
         rm -rf /opt/arcane/data /opt/arcane/projects
@@ -314,8 +322,21 @@ do_uninstall() {
 root_protection
 check_dependencies curl podman-compose
 
+parse_args "$@"
+
+if [ -n "$CMD_ACTION" ]; then
+    case "$CMD_ACTION" in
+        install)   do_install ;;
+        start)     do_start ;;
+        update)    do_update ;;
+        uninstall) do_uninstall ;;
+        *) err "Invalid action."; exit 1 ;;
+    esac
+    exit 0
+fi
+
 if check_existing_installation "/opt/arcane"; then
-    if [ -t 0 ]; then
+    if [ -t 0 ] && [ "$FORCE_YES" -eq 0 ]; then
         echo ""
         echo "================================================================="
         echo " ARCANE — Management"
