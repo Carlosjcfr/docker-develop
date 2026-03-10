@@ -28,7 +28,7 @@ generate_runtime_env() {
     local OLD_UMASK=$(umask); umask 177
 
     # Aseguramos de que las credenciales obligatorias existen
-    manage_credentials "$INSTALL_DIR" POSTGRES_PASSWORD JWT_SECRET
+    manage_credentials "$INSTALL_DIR" POSTGRES_PASSWORD JWT_SECRET SECRET_KEY_BASE
 
     cat <<EOF > "$INSTALL_DIR/.env"
 HOST_IP="$HOST_IP"
@@ -42,6 +42,7 @@ POSTGRES_PORT="$POSTGRES_PORT"
 
 POSTGRES_PASSWORD="$POSTGRES_PASSWORD"
 JWT_SECRET="$JWT_SECRET"
+SECRET_KEY_BASE="$SECRET_KEY_BASE"
 
 POSTGRES_VERSION="$POSTGRES_VERSION"
 STUDIO_VERSION="$STUDIO_VERSION"
@@ -92,20 +93,20 @@ deploy_and_persist() {
     podman-compose config -q || err "Sintaxis de docker-compose invalida. Abortando instalación."
 
     log "Extrayendo imágenes de contenedor..."
-    if ! podman-compose pull; then
+    if ! podman-compose pull > /dev/null; then
         err "Fallo al descargar imágenes. Posible Tag inexistente o error de red."
         read -rp " ¿Deseas sustituir dinámicamente todos los tags por 'latest' e intentar de nuevo? [y/N]: " FIX_TAGS
         if [[ "$FIX_TAGS" =~ ^[Yy]$ ]]; then
             log "Parcheando tags a 'latest' en docker-compose.yml..."
             sed -i '/^[[:space:]]*image:/s/:[^:/]*$/:latest/' "$INSTALL_DIR/docker-compose.yml"
-            podman-compose pull || { err "Fallo crítico repetido al probar con latest."; exit 1; }
+            podman-compose pull > /dev/null || { err "Fallo crítico repetido al probar con latest."; exit 1; }
         else
             err "Lanza la actualización manualmente para depurar el error."
             exit 1
         fi
     fi
 
-    podman-compose up -d
+    podman-compose up -d > /dev/null
 
     verify_containers_running "supabase-db" "supabase-studio" "supabase-kong" "supabase-auth" "supabase-rest" "supabase-realtime" "supabase-meta" "supabase-storage"
 

@@ -40,3 +40,34 @@ Al generar un `docker-compose.yml` minimizado y arrancar el contenedor "desnudo"
 Plataformas como Coolify **no** intentan reescribir, resumir o "adivinar" el Docker Compose de Supabase; instancian repositorios complejos clonando la arquitectura completa y fiel del fabricante ("One-Click Apps").
 - Para solucionar esto estructuralmente en tu framework, la IA jamás debe intentar reconstruir de memoria la estructura de dependencias de un Macro-Stack complejo. 
 - Debemos instruir una regla nueva en `NEW_SERVICE_TEMPLATE.md` (Regla 7): Para Macro-Servicios que dependan de sub-directorios con scripts o volúmenes iniciales (.sql, .conf, .json), el script bash DEBE clonarlos directamente del repositorio oficial en `$INSTALL_DIR` garantizando que estén presentes *antes* del `podman-compose up -d`.
+
+---
+
+## Error 7: Realtime Crash - Missing SECRET_KEY_BASE
+
+**Problema:**
+El contenedor `supabase-realtime` se queda en estado `stopped` con el error:
+`** (System.EnvError) could not fetch environment variable "SECRET_KEY_BASE" because it is not set`.
+
+**Causa Raíz:**
+El motor Elixir (Phoenix) sobre el que corre Realtime exige una clave secreta de cifrado obligatoria para las cookies y sesiones internas del clúster. La IA original no incluyó esta variable ni en la generación de secretos ni en el mapa de entorno del `docker-compose.yml`.
+
+**Solución:**
+1. Modificar `supabase.sh` para que `manage_credentials` genere automáticamente una cadena aleatoria para `SECRET_KEY_BASE`.
+2. Mapear dicha variable en la sección `environment:` del servicio `realtime` en el `docker-compose.yml`.
+
+---
+
+## Error 8: The Ghost Volume Trap & Role Mismatches (password authentication failed)
+
+**Problema:**
+Servicios como `supabase-storage` (y otros dependientes) lanzan errores masivos de conexión:
+`password authentication failed for user "postgres"` o similares.
+
+**Causa Raíz:**
+1. **La Trampa del Volumen Fantasma (`Ghost Volume`):** Cuando eliminaste la carpeta `/opt/supabase` para reinstalar, el archivo `config.env` que contenía el `POSTGRES_PASSWORD` original se destruyó. Al reinstalar, el script generó un *nuevo* password. Sin embargo, el volumen Docker persistente (`supabase_db_data`) NO se borró ni se vació. Postgres detectó datos existentes, usó la contraseña antigua horneada en el volumen, ignoró los scripts `.sql` de inyección que acabábamos de crear, y denegó todas las nuevas conexiones que usaban la nueva contraseña.
+2. **Rol "postgres" Hardcodeado:** En el `docker-compose.yml`, todos los servicios usaban al superusuario genérico `postgres`, ignorando los roles de ultra-precisión (`supabase_storage_admin`, `authenticator`, etc.) que el fabricante usa nativamente para segmentar permisos de seguridad.
+
+**Solución Implementada:**
+1. **Corrección de Roles en YAML:** Hemos editado el `docker-compose.yml` para que `auth` use `supabase_auth_admin`, `rest` use `authenticator`, `meta`/`realtime` usen `supabase_admin` y `storage` use `supabase_storage_admin`.
+2. **Procedimiento de Limpieza Obligatorio:** Para reinstalar un stack tan denso desde cero de verdad, NUNCA basta con hacer un `rm -rf /opt`. Se deben destruir los volúmenes, o bien usando el comando nativo de nuestro framework `bash supabase.sh --uninstall`, o ejecutando `podman volume rm supabase_supabase_db_data`.

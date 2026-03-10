@@ -85,20 +85,20 @@ deploy_and_persist() {
     podman-compose config -q || err "Sintaxis de docker-compose invalida. Abortando instalación."
     
     log "Extrayendo imágenes de contenedor..."
-    if ! podman-compose pull; then
+    if ! podman-compose pull > /dev/null; then
         err "Fallo al descargar imágenes. Posible Tag inexistente o error de red."
         read -rp " ¿Deseas sustituir dinámicamente todos los tags por 'latest' e intentar de nuevo? [y/N]: " FIX_TAGS
         if [[ "$FIX_TAGS" =~ ^[Yy]$ ]]; then
             log "Parcheando tags a 'latest' en docker-compose.yml..."
             sed -i '/^[[:space:]]*image:/s/:[^:/]*$/:latest/' "$INSTALL_DIR/docker-compose.yml"
-            podman-compose pull || { err "Fallo crítico repetido al probar con latest."; exit 1; }
+            podman-compose pull > /dev/null || { err "Fallo crítico repetido al probar con latest."; exit 1; }
         else
             err "Lanza la actualización manualmente para depurar el error."
             exit 1
         fi
     fi
     
-    podman-compose up -d
+    podman-compose up -d > /dev/null
     verify_containers_running <tus_contenedores_aqui>
     
     rm -f "$INSTALL_DIR"/*.bak 2>/dev/null || true
