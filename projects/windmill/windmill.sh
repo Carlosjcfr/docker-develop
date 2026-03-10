@@ -84,7 +84,7 @@ deploy_and_persist() {
     podman-compose config >/dev/null 2>&1 || { err "Sintaxis de docker-compose invalida. Abortando instalación."; exit 1; }
     
     log "Extrayendo imágenes de contenedor..."
-    if ! podman-compose pull > /dev/null 2>&1; then
+    if ! podman-compose pull; then
         err "Fallo al descargar imágenes. Posible Tag inexistente o error de red."
         read -rp " ¿Deseas sustituir dinámicamente todos los tags por 'latest' e intentar de nuevo? [y/N]: " FIX_TAGS
         if [[ "$FIX_TAGS" =~ ^[Yy]$ ]]; then
