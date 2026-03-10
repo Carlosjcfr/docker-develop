@@ -87,3 +87,22 @@ Las versiones recientes de GoTrue (como la `v2.186.0`) requieren explícitamente
 1. Añadir `GOTRUE_DB_DRIVER="postgres"` al archivo `config.env`.
 2. Actualizar `supabase.sh` para exportar esta variable al archivo `.env` de runtime.
 3. Mapear `GOTRUE_DB_DRIVER: ${GOTRUE_DB_DRIVER}` en la sección `environment:` del servicio `auth` en `docker-compose.yml`.
+
+---
+
+## Error 10: Realtime Crash (APP_NAME) & Rest Password Auth Failures
+
+**Problema:**
+Afloraron errores en cadena en múltiples servicios tras solventar los bloqueos iniciales.
+- **`supabase-realtime`** crashea instantáneamente con el error de Elixir: `** (RuntimeError) APP_NAME not available`.
+- **`supabase-rest`** y **`supabase-auth`** lanzan un error de base de datos idéntico: `FATAL: password authentication failed for user "authenticator"` o `"supabase_auth_admin"`.
+
+**Causa Raíz:**
+1. **APP_NAME missing:** Las versiones recientes de Realtime (v2.76.5) exigen `APP_NAME` como variable obligatoria en Elixir, además de requerir otras variables críticas desestimadas en el YAML original (`DB_ENC_KEY`, `DB_AFTER_CONNECT_QUERY`, `ERL_AFLAGS`, `RLIMIT_NOFILE`). Rehusar copiarlas desde el fabricante resulta fatal.
+2. **Missing JWT_SECRET en `db`:** El `docker-compose.yml` local no pasaba la variable `JWT_SECRET` ni `JWT_EXP` al contenedor de Postgres. Consecuentemente, cuando el archivo de migración `jwt.sql` se ejecuta durante la primera inicialización (`\set jwt_secret `echo "$JWT_SECRET"`), asigna secretos vacíos o caracteres nulos en el núcleo de la BD. 
+3. **Escapes Shell en Postgres Rootless:** En entornos restrictivos de Podman, la evaluación de comandos Shell dentro del `psql` (como `echo "$POSTGRES_PASSWORD"`) que usan los scripts `.sql` oficiales como método de hidratación de variables puede fallar silenciosamente, dejando cuentas como `authenticator` sin clave definida o con contraseñas mutiladas, provocando errores de autenticación.
+
+**Solución Estructural Implementada:**
+1. **Hydratación Activa (Sed):** Se ha modificado `supabase.sh` para que capture proactivamente los archivos `.sql` originales tras descargarlos, y con `sed`, aplique **Hardcoding** de las contraseñas exactas generadas, inyectando `${POSTGRES_PASSWORD}`, `${JWT_SECRET}` y `${JWT_EXPIRY}`. Esto destituye en absoluto cualquier dependencia de sub-shells defectuosos en `initdb.d` bajo podman.
+2. **Recreación Paramétrica Fiel:** Se inyectaron a `docker-compose.yml` todas las variables operativas oficiales de Realtime (`APP_NAME: realtime`, `SECRET_KEY_BASE`, etc.) y REST (`PGRST_APP_SETTINGS_JWT_SECRET`, etc.).
+3. **Sincronización `db`:** Ahora el contenedor Postgres percibe formalmente `JWT_SECRET` y `JWT_EXP` en su bloque enviroment para no divergir entre contenedores.

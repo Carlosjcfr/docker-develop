@@ -24,6 +24,7 @@ load_configuration() {
     STORAGE_VERSION="${STORAGE_VERSION:-v1.11.13}"
 
     GOTRUE_DB_DRIVER="${GOTRUE_DB_DRIVER:-postgres}"
+    JWT_EXPIRY="${JWT_EXPIRY:-3600}"
 }
 
 generate_runtime_env() {
@@ -55,6 +56,7 @@ REALTIME_VERSION="$REALTIME_VERSION"
 META_VERSION="$META_VERSION"
 STORAGE_VERSION="$STORAGE_VERSION"
 GOTRUE_DB_DRIVER="$GOTRUE_DB_DRIVER"
+JWT_EXPIRY="$JWT_EXPIRY"
 EOF
     umask "$OLD_UMASK"
 
@@ -86,12 +88,16 @@ deploy_and_persist() {
 
     log "Descargando volúmenes SQL de inicialización oficiales de Supabase..."
     mkdir -p "$INSTALL_DIR/volumes/db"
-    local raw_base="https://raw.githubusercontent.com/supabase/supabase/master/docker/volumes/db"
-    for sql_file in realtime.sql webhooks.sql roles.sql jwt.sql _supabase.sql logs.sql pooler.sql; do
+    local raw_base="https://raw.githubusercontent.com/supabase/supa ler.sql; do
         if [ ! -f "$INSTALL_DIR/volumes/db/$sql_file" ]; then
             curl -sSL "$raw_base/$sql_file" -o "$INSTALL_DIR/volumes/db/$sql_file" || err "Fallo al descargar $sql_file del repositorio oficial."
         fi
     done
+
+    log "Parcheando scripts SQL (Previniendo fallos de expansión psql en rootless)..."
+    sed -i "s|\\\\set pgpass \`echo \"\$POSTGRES_PASSWORD\"\`|\\\\set pgpass '${POSTGRES_PASSWORD}'|g" "$INSTALL_DIR/volumes/db/roles.sql"
+    sed -i "s|\\\\set jwt_secret \`echo \"\$JWT_SECRET\"\`|\\\\set jwt_secret '${JWT_SECRET}'|g" "$INSTALL_DIR/volumes/db/jwt.sql"
+    sed -i "s|\\\\set jwt_exp \`echo \"\$JWT_EXP\"\`|\\\\set jwt_exp '${JWT_EXPIRY}'|g" "$INSTALL_DIR/volumes/db/jwt.sql"
 
     podman-compose config -q || err "Sintaxis de docker-compose invalida. Abortando instalación."
 
