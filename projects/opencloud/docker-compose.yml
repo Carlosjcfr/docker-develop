@@ -1,0 +1,31 @@
+version: '3.8'
+
+services:
+  opencloud:
+    image: docker.io/opencloudeu/opencloud-rolling:${OPENCLOUD_VERSION}
+    container_name: opencloud
+    user: "${PUID}:${PGID}"
+    environment:
+      - OC_URL=https://${HOST_IP}:${OPENCLOUD_PORT}
+      - OC_DOMAIN=${OPENCLOUD_DOMAIN}
+      - IDM_ADMIN_PASSWORD=${INITIAL_ADMIN_PASSWORD}
+      - OC_INSECURE=true
+      - PROXY_TLS=false
+      - OC_LOG_LEVEL=info
+    ports:
+      - "${OPENCLOUD_PORT}:9200"
+    volumes:
+      - ./config/csp.yaml:/etc/opencloud/csp.yaml:Z
+      - ./config/banned-password-list.txt:/etc/opencloud/banned-password-list.txt:Z
+      - ./data/config:/etc/opencloud:Z
+      - ./data/storage:/var/lib/opencloud:Z
+    labels:
+      - "dev.arcane.icon=${ARCANE_ICON}"
+      - "dev.arcane.category=${ARCANE_CATEGORY}"
+      - "com.docker.compose.project=opencloud"
+      - "com.docker.compose.project.working_dir=/app/data/projects/opencloud"
+    restart: always
+
+networks:
+  default:
+    name: opencloud-net

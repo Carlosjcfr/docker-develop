@@ -1,0 +1,201 @@
+#!/bin/bash
+set -euo pipefail
+
+GIT_BRANCH="${GIT_BRANCH:-main}"
+REPO_BASE="${REPO_BASE:-https://raw.githubusercontent.com/Carlosjcfr/docker-develop/$GIT_BRANCH}"
+REPO_RAW="$REPO_BASE/projects/opencloud"
+# shellcheck source=lib.sh
+source <(curl -fsSL "$REPO_BASE/lib/lib.sh")
+
+load_configuration() {
+    # shellcheck source=/dev/null
+    source "$TMP_DIR/config.env"
+    INSTALL_DIR="${INSTALL_DIR:-/opt/opencloud}"
+    # Inicializa tus variables personalizadas aquí
+    OPENCLOUD_VERSION="${OPENCLOUD_VERSION:-5.2.0}"
+    OPENCLOUD_PORT="${OPENCLOUD_PORT:-9200}"
+    ARCANE_ICON="${ARCANE_ICON:-si:opencloud}"
+    ARCANE_CATEGORY="${ARCANE_CATEGORY:-Cloud}"
+}
+
+generate_runtime_env() {
+    local OLD_UMASK
+    OLD_UMASK=$(umask)
+    umask 177
+    cat <<EOF > "$INSTALL_DIR/.env"
+HOST_IP="$HOST_IP"
+PUID="$PUID"
+PGID="$PGID"
+PODMAN_SOCK="$PODMAN_SOCK"
+OPENCLOUD_VERSION="$OPENCLOUD_VERSION"
+OPENCLOUD_PORT="$OPENCLOUD_PORT"
+INITIAL_ADMIN_PASSWORD="$INITIAL_ADMIN_PASSWORD"
+# Arcane metadata
+ARCANE_ICON="$ARCANE_ICON"
+ARCANE_CATEGORY="$ARCANE_CATEGORY"
+EOF
+    umask "$OLD_UMASK"
+}
+
+do_uninstall() {
+    INSTALL_DIR="${INSTALL_DIR:-/opt/opencloud}"
+    # shellcheck disable=SC2034
+    UNINSTALL_SVC_NAME="OpenCloud"
+    # shellcheck disable=SC2034
+    UNINSTALL_SYSTEMD="container-opencloud.service" 
+    # shellcheck disable=SC2034
+    UNINSTALL_CONTAINERS=("opencloud")
+    
+    # NOTE: UNINSTALL_IMAGES array is only for static fallback.
+    # The engine now automatically discovers images from docker-compose.yml.
+    # shellcheck disable=SC2034
+    UNINSTALL_IMAGES=("docker.io/opencloudeu/opencloud-rolling:5.2.0")
+    
+    # shellcheck disable=SC2034
+    UNINSTALL_VOLUMES=()
+    # shellcheck disable=SC2034
+    UNINSTALL_DIRS=("$INSTALL_DIR/data" "$INSTALL_DIR/config")
+    uninstall_generic_service
+}
+
+check_existing_installation() {
+    local dir="${1:-/opt/opencloud}"
+    if [ -f "$dir/.env" ] && podman container exists opencloud 2>/dev/null; then
+        return 0
+    fi
+    return 1
+}
+
+deploy_and_persist() {
+    log "Starting services with podman-compose..."
+    cd "$INSTALL_DIR"
+    
+    podman-compose config >/dev/null 2>&1 || { err "Sintaxis de docker-compose invalida. Abortando instalación."; exit 1; }
+    
+    log "Extrayendo imágenes de contenedor..."
+    if ! podman-compose pull > "$INSTALL_DIR/install.log" 2>&1; then
+        err "Fallo al descargar imágenes. Posible Tag inexistente o error de red. Revisa $INSTALL_DIR/install.log"
+        read -rp " ¿Deseas sustituir dinámicamente todos los tags por 'latest' e intentar de nuevo? [y/N]: " FIX_TAGS
+        if [[ "$FIX_TAGS" =~ ^[Yy]$ ]]; then
+            log "Parcheando tags a 'latest' en docker-compose.yml..."
+            sed -i '/^[[:space:]]*image:/s/:[^:/]*$/:latest/' "$INSTALL_DIR/docker-compose.yml"
+            podman-compose pull > /dev/null || { err "Fallo crítico repetido al probar con latest."; exit 1; }
+        else
+            err "Lanza la actualización manualmente para depurar el error."
+            exit 1
+        fi
+    fi
+    
+    podman-compose up -d > /dev/null 2>&1
+    verify_containers_running opencloud
+    
+    rm -f "$INSTALL_DIR"/*.bak 2>/dev/null || true
+    
+    log "Configuring systemd service for persistence..."
+    mkdir -p ~/.config/systemd/user/
+    cat <<EOF > ~/.config/systemd/user/container-opencloud.service
+[Unit]
+Description=OpenCloud Stack (podman-compose)
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+WorkingDirectory=$INSTALL_DIR
+ExecStart=$(command -v podman-compose) up -d
+ExecStop=$(command -v podman-compose) down
+TimeoutStartSec=120
+TimeoutStopSec=30
+[Install]
+WantedBy=default.target
+EOF
+    systemctl --user daemon-reload
+    systemctl --user enable --now container-opencloud.service
+}
+
+print_success() {
+    echo "================================================================="
+    echo " OpenCloud deployed and secured with systemd."
+    echo " URL: https://$HOST_IP:$OPENCLOUD_PORT"
+    echo " Admin: admin / $INITIAL_ADMIN_PASSWORD"
+    echo "================================================================="
+}
+
+# -----------------------------------------------------------------------------
+# REQUIRED ACTIONS
+# -----------------------------------------------------------------------------
+do_install() {
+    download_repo_files "$REPO_RAW" config.env docker-compose.yml
+    offer_interactive_mode; load_configuration; detect_host_ip
+    
+    # Generate admin password if not provided
+    manage_credentials "$INSTALL_DIR" INITIAL_ADMIN_PASSWORD
+    setup_lingering_and_socket
+    
+    check_install_dir_writable "$INSTALL_DIR"
+    mkdir -p "$INSTALL_DIR/config" "$INSTALL_DIR/data"
+    
+    # Download essential sub-volumes/configs
+    log "Downloading essential configuration files..."
+    curl -fsSL "https://raw.githubusercontent.com/opencloud-eu/opencloud-compose/main/config/opencloud/csp.yaml" -o "$INSTALL_DIR/config/csp.yaml" || touch "$INSTALL_DIR/config/csp.yaml"
+    curl -fsSL "https://raw.githubusercontent.com/opencloud-eu/opencloud-compose/main/config/opencloud/banned-password-list.txt" -o "$INSTALL_DIR/config/banned-password-list.txt" || touch "$INSTALL_DIR/config/banned-password-list.txt"
+
+    mv -f "$TMP_DIR/config.env" "$INSTALL_DIR/config.env"
+    mv -f "$TMP_DIR/docker-compose.yml" "$INSTALL_DIR/docker-compose.yml"
+    
+    generate_runtime_env
+    deploy_and_persist
+    register_arcane_project "opencloud" "$INSTALL_DIR"
+    print_success
+}
+
+do_start() {
+    systemctl --user start container-opencloud.service
+}
+
+do_update() {
+    download_repo_files "$REPO_RAW" config.env docker-compose.yml
+    offer_interactive_mode; load_configuration; detect_host_ip
+    setup_lingering_and_socket
+    
+    generate_runtime_env
+    
+    cp "$INSTALL_DIR/config.env" "$INSTALL_DIR/config.env.bak" 2>/dev/null || true
+    cp "$INSTALL_DIR/docker-compose.yml" "$INSTALL_DIR/docker-compose.yml.bak" 2>/dev/null || true
+    
+    mv -f "$TMP_DIR/config.env" "$INSTALL_DIR/config.env"
+    mv -f "$TMP_DIR/docker-compose.yml" "$INSTALL_DIR/docker-compose.yml"
+    
+    deploy_and_persist
+    register_arcane_project "opencloud" "$INSTALL_DIR"
+    print_success
+}
+
+# -----------------------------------------------------------------------------
+# MAIN LOOP ENTRY POINT
+# -----------------------------------------------------------------------------
+root_protection
+check_dependencies curl podman-compose
+parse_args "$@"
+
+if [ -n "$CMD_ACTION" ]; then
+    case "$CMD_ACTION" in
+        install)   do_install ;;
+        start)     do_start ;;
+        update)    do_update ;;
+        uninstall) do_uninstall ;;
+        *) err "Invalid action."; exit 1 ;;
+    esac
+    exit 0
+fi
+
+if check_existing_installation "/opt/opencloud"; then
+    echo "1) Start 2) Update 3) Uninstall"
+    read -rp " Select [1-3]: " ACTION
+    case "$ACTION" in
+        1) do_start ;; 2) do_update ;; 3) do_uninstall ;; *) exit 0 ;;
+    esac
+else
+    do_install
+fi
