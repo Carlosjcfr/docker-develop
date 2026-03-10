@@ -33,7 +33,9 @@ load_configuration() {
 }
 
 generate_runtime_env() {
-    local OLD_UMASK=$(umask); umask 177
+    local OLD_UMASK
+    OLD_UMASK=$(umask)
+    umask 177
 
     # Ensure mandatory credentials exist
     manage_credentials "$INSTALL_DIR" POSTGRES_PASSWORD JWT_SECRET SECRET_KEY_BASE

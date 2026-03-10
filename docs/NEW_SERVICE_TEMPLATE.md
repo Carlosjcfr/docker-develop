@@ -47,7 +47,9 @@ load_configuration() {
 }
 
 generate_runtime_env() {
-    local OLD_UMASK=$(umask); umask 177
+    local OLD_UMASK
+    OLD_UMASK=$(umask)
+    umask 177
     cat <<EOF > "$INSTALL_DIR/.env"
 HOST_IP="$HOST_IP"
 PUID="$PUID"
