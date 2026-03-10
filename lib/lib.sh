@@ -483,17 +483,20 @@ register_arcane_project() {
 
     log "Registering project '$project_name' in Arcane..."
 
-    # Ensure the parent directory exists and is writable
-    if ! [ -d "$arcane_projects_dir" ]; then
-        if sudo mkdir -p "$arcane_projects_dir" && sudo chown -R "$USER:$USER" "$arcane_projects_dir" 2>/dev/null; then
-            log "  Created Arcane projects directory: $arcane_projects_dir"
+    # Ensure the parent directory exists
+    if ! [ -d "$arcane_projects_dir/$project_name" ]; then
+        if sudo mkdir -p "$arcane_projects_dir/$project_name" && sudo chown -R "$USER:$USER" "$arcane_projects_dir" 2>/dev/null; then
+            log "  Created Arcane projects directory: $arcane_projects_dir/$project_name"
         else
             warn "  Could not create Arcane projects directory. Skipping registration."
             return 1
         fi
     fi
 
-    # Create/update symlink
-    ln -sfn "$install_dir" "$arcane_projects_dir/$project_name"
-    log "  Symlink created: $arcane_projects_dir/$project_name -> $install_dir"
+    # Copy files instead of symlinking. Symlinks break because they point to paths 
+    # outside the Arcane container (e.g. /opt/supabase) which are not mounted.
+    cp -f "$install_dir/docker-compose.yml" "$arcane_projects_dir/$project_name/"
+    [ -f "$install_dir/.env" ] && cp -f "$install_dir/.env" "$arcane_projects_dir/$project_name/"
+    
+    log "  Config synced to Arcane: $arcane_projects_dir/$project_name"
 }

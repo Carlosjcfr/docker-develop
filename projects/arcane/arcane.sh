@@ -149,7 +149,7 @@ deploy_and_persist() {
     cd "$INSTALL_DIR"
     # podman-compose up -d exits 0 even on total failure — verify_containers_running
     # performs the real post-deploy check.
-    podman-compose up -d
+    podman-compose up -d > /dev/null 2>&1
 
     verify_containers_running arcane
 
@@ -264,7 +264,7 @@ do_update() {
 
     log "Pulling latest Arcane image..."
     cd "$INSTALL_DIR"
-    podman-compose pull
+    podman-compose pull > /dev/null 2>&1
 
     deploy_and_persist
     register_arcane_project "arcane" "$INSTALL_DIR"

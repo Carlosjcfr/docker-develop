@@ -22,7 +22,7 @@ Actúa como experto DevOps. Crea los 4 ficheros para integrar este servicio en m
 8. **Variables Críticas (Previsión de Crasheos):** Antes de plantear el `docker-compose.yml`, debes examinar exhaustivamente el `.env.example` o la documentación oficial del fabricante para discriminar qué parámetros son esenciales. **No omitas variables de entorno orgánicas obligatorias** para un arranque funcional (ej. URLs de callback externas, tokens internos pre-generados o contraseñas core). Sin embargo, **NO incluyas a ciegas absolutamente todos los parámetros** (omite variables experimentales, opcionales, o analíticas secundarias que no sean críticas). Recrea solo el `environment:` estrictamente necesario y centralízalo a través de nuestro `config.env`.
 9. **Integración con Arcane (Visibility):** Todo nuevo servicio debe integrarse en el panel de control **Arcane**. Esto implica tres requisitos obligatorios:
    - **Labels en Compose:** El contenedor principal debe incluir labels para icono (`dev.arcane.icon`), categoría (`dev.arcane.category`) y nombre de proyecto (`com.docker.compose.project`).
-   - **Registro por Symlink:** El script `.sh` debe llamar a `register_arcane_project "<slug>" "$INSTALL_DIR"` tras el despliegue.
+   - **Registro del Proyecto:** El script `.sh` debe llamar a `register_arcane_project "<slug>" "$INSTALL_DIR"` tras el despliegue.
    - **Variables Estéticas:** Los valores de icono y categoría deben ser parametrizables desde `config.env`.
 
 **ESQUELETO OBLIGATORIO PARA `<slug>.sh`:**
@@ -93,7 +93,7 @@ deploy_and_persist() {
     podman-compose config -q || err "Sintaxis de docker-compose invalida. Abortando instalación."
     
     log "Extrayendo imágenes de contenedor..."
-    if ! podman-compose pull > /dev/null; then
+    if ! podman-compose pull > /dev/null 2>&1; then
         err "Fallo al descargar imágenes. Posible Tag inexistente o error de red."
         read -rp " ¿Deseas sustituir dinámicamente todos los tags por 'latest' e intentar de nuevo? [y/N]: " FIX_TAGS
         if [[ "$FIX_TAGS" =~ ^[Yy]$ ]]; then
@@ -106,7 +106,7 @@ deploy_and_persist() {
         fi
     fi
     
-    podman-compose up -d > /dev/null
+    podman-compose up -d > /dev/null 2>&1
     verify_containers_running <tus_contenedores_aqui>
     
     rm -f "$INSTALL_DIR"/*.bak 2>/dev/null || true
