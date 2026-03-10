@@ -37,6 +37,7 @@ services:
     environment:
       GOTRUE_API_HOST: 0.0.0.0
       GOTRUE_API_PORT: 9999
+      GOTRUE_DB_DRIVER: ${GOTRUE_DB_DRIVER}
       GOTRUE_DB_DATABASE_URL: postgres://supabase_auth_admin:${POSTGRES_PASSWORD}@db:5432/postgres
       GOTRUE_SITE_URL: http://${HOST_IP}:${STUDIO_PORT}
       GOTRUE_JWT_SECRET: ${JWT_SECRET}

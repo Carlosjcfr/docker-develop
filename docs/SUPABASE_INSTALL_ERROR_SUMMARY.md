@@ -71,3 +71,19 @@ Servicios como `supabase-storage` (y otros dependientes) lanzan errores masivos 
 **Solución Implementada:**
 1. **Corrección de Roles en YAML:** Hemos editado el `docker-compose.yml` para que `auth` use `supabase_auth_admin`, `rest` use `authenticator`, `meta`/`realtime` usen `supabase_admin` y `storage` use `supabase_storage_admin`.
 2. **Procedimiento de Limpieza Obligatorio:** Para reinstalar un stack tan denso desde cero de verdad, NUNCA basta con hacer un `rm -rf /opt`. Se deben destruir los volúmenes, o bien usando el comando nativo de nuestro framework `bash supabase.sh --uninstall`, o ejecutando `podman volume rm supabase_supabase_db_data`.
+
+---
+
+## Error 9: Auth Crash - Missing GOTRUE_DB_DRIVER
+
+**Problema:**
+El contenedor `supabase-auth` falla al arrancar con el error fatal:
+`{"level":"fatal","msg":"Failed to load configuration: required key GOTRUE_DB_DRIVER missing value"}`.
+
+**Causa Raíz:**
+Las versiones recientes de GoTrue (como la `v2.186.0`) requieren explícitamente la definición del motor de base de datos (`postgres`) en una variable de entorno dedicada, incluso si la URL de conexión ya lo implica.
+
+**Solución:**
+1. Añadir `GOTRUE_DB_DRIVER="postgres"` al archivo `config.env`.
+2. Actualizar `supabase.sh` para exportar esta variable al archivo `.env` de runtime.
+3. Mapear `GOTRUE_DB_DRIVER: ${GOTRUE_DB_DRIVER}` en la sección `environment:` del servicio `auth` en `docker-compose.yml`.

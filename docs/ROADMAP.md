@@ -65,11 +65,26 @@ The framework has completed its initial architecture phase. Key features impleme
 - **The Problem**: A mid-update failure or interruption can leave the installation directory in a partial, broken state.
 - **The Solution**: Download new files with a `.new` suffix, validate their syntax, and perform atomic `mv` operations only once the script is ready for the restart.
 
-#### 📋 4.4 Optimización de Salida de Podman (Silent Pulls)
+#### 📋 4.4 Optimización de Salida de Podman & Progress Bar
 
-- **The Problem**: Imágenes compuestas por cientos de capas (como Supabase Postgres) inundan la salida de la terminal con mensajes "skipped: already exists", empeorando la legibilidad general del orquestador.
-- **The Solution**: Incorporar banderas de silenciamiento en los comandos de despliegue (`podman-compose --quiet pull docker-compose.yml > /dev/null 2>&1`) guardando un log nativo limpio sin la verbosidad intrínseca de la descarga y evaluación de deltas.
-- **Impact**: Mejora drástica de la UX visual en terminal y reducción del búfer generado.
+- **The Problem**: Imágenes compuestas por cientos de capas (como Supabase) inundan la salida de la terminal con mensajes "skipped: already exists", restando visibilidad a los logs de orquestación críticos. El usuario final percibe el proceso como "caótico" en lugar de estructurado.
+- **The Solution**: Implementar un sistema de "Silent Mode" por defecto que redirija la salida verbosa a un archivo de log temporal (`/tmp/install.log`) y muestre una barra de progreso visual o una lista de estados simplificada.
+
+**Análisis de la Feature:**
+
+| Aspecto | Consideración |
+| :--- | :--- |
+| **Pros** | UX premium (limpia y profesional), reducción del ruido visual, facilidad para identificar fallos reales vs. ruido de red. |
+| **Contras** | Mayor complejidad en Bash (manejo de subprocesos y señales), dificultad para estimar tiempos exactos en descargas paralelas. |
+| **Riesgos** | Si el proceso se congela sin salida visual, el usuario puede interrumpirlo prematuramente. |
+
+**Posibles Implementaciones:**
+
+1. **Iterativa Secuencial (Precisión Alta)**: Pull individual de cada imagen definida en el `compose.yaml` mostrando un contador `[1/8]`. Permite saber exactamente qué imagen falla.
+2. **Monitorización de Log (UX Moderna)**: Lanzar `podman-compose pull` en background y usar un bucle `while` para actualizar una barra de progreso basada en el número de imágenes completadas detectadas en el log.
+3. **Spinner + Status**: Un indicador animado simple con el nombre del servicio actual siendo procesado (e.g., `⠋ Pulling supabase-db...`).
+
+- **Impact**: Mejora drástica de la UX visual en terminal y reducción del búfer generado, acercándose a la experiencia de herramientas tipo `gh` o `docker` (v2).
 
 ---
 
@@ -87,7 +102,7 @@ bash stack.sh --update all      # updates all services
 
 Service dependency graph:
 
-```
+```text
 caddy (proxy) ──► must be installed first
      │
      └──► arcane
@@ -135,7 +150,7 @@ before they reach a production server.
 ## Priority Matrix
 
 | ID | Improvement | Effort | Impact | Suggested order |
-|---|---|---|---|---|
+| :--- | :--- | :--- | :--- | :--- |
 | 1.1 | CLI argument support | Low | High | **1st** |
 | 1.2 | Env var override layer | Low | High | **1st** |
 | 1.3 | Pre-flight checks | Low | High | **2nd** |
@@ -157,7 +172,7 @@ are only 1–2 scripts, but grows significantly with each new service added with
 
 The natural implementation sequence is:
 
-```
+```text
 1.4 (logging) → 1.1 + 1.2 (CLI + env vars) → 1.3 (preflight) →
 3.1 (lib.sh)  → 2.1 (health checks)         → 2.2 (rollback)  →
 3.2 (stack.sh)

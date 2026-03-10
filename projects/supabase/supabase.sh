@@ -22,6 +22,8 @@ load_configuration() {
     REALTIME_VERSION="${REALTIME_VERSION:-v2.33.44}"
     META_VERSION="${META_VERSION:-v0.83.2}"
     STORAGE_VERSION="${STORAGE_VERSION:-v1.11.13}"
+
+    GOTRUE_DB_DRIVER="${GOTRUE_DB_DRIVER:-postgres}"
 }
 
 generate_runtime_env() {
@@ -52,6 +54,7 @@ POSTGREST_VERSION="$POSTGREST_VERSION"
 REALTIME_VERSION="$REALTIME_VERSION"
 META_VERSION="$META_VERSION"
 STORAGE_VERSION="$STORAGE_VERSION"
+GOTRUE_DB_DRIVER="$GOTRUE_DB_DRIVER"
 EOF
     umask "$OLD_UMASK"
 
@@ -92,21 +95,22 @@ deploy_and_persist() {
 
     podman-compose config -q || err "Sintaxis de docker-compose invalida. Abortando instalación."
 
-    log "Extrayendo imágenes de contenedor..."
-    if ! podman-compose pull > /dev/null; then
+    log "Extrayendo imágenes de contenedor (este proceso es silencioso y puede tardar)..."
+    if ! podman-compose pull > /dev/null 2>&1; then
         err "Fallo al descargar imágenes. Posible Tag inexistente o error de red."
         read -rp " ¿Deseas sustituir dinámicamente todos los tags por 'latest' e intentar de nuevo? [y/N]: " FIX_TAGS
         if [[ "$FIX_TAGS" =~ ^[Yy]$ ]]; then
             log "Parcheando tags a 'latest' en docker-compose.yml..."
             sed -i '/^[[:space:]]*image:/s/:[^:/]*$/:latest/' "$INSTALL_DIR/docker-compose.yml"
-            podman-compose pull > /dev/null || { err "Fallo crítico repetido al probar con latest."; exit 1; }
+            podman-compose pull > /dev/null 2>&1 || { err "Fallo crítico repetido al probar con latest."; exit 1; }
         else
             err "Lanza la actualización manualmente para depurar el error."
             exit 1
         fi
     fi
 
-    podman-compose up -d > /dev/null
+    log "Iniciando contenedores..."
+    podman-compose up -d > /dev/null 2>&1
 
     verify_containers_running "supabase-db" "supabase-studio" "supabase-kong" "supabase-auth" "supabase-rest" "supabase-realtime" "supabase-meta" "supabase-storage"
 
