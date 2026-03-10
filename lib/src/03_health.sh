@@ -2,10 +2,7 @@
 # DEPLOYMENT VALIDATION
 # =============================================================================
 
-# Verify that all specified containers are in 'running' state.
-# podman-compose up -d always exits 0 — this catches silent failures.
-# Usage: verify_containers_running CONTAINER [CONTAINER ...]
-# Exit code 3 = deployment failed: one or more containers not running.
+# Verifies specified containers are in a 'running' state post-deployment (Ref: docs/LIBRARY_REFERENCE.md)
 verify_containers_running() {
     local -a REQUIRED=("$@")
     local -a FAILED=()
@@ -52,10 +49,7 @@ verify_containers_running() {
 # HTTP HEALTH CHECKS  (F3.4)
 # =============================================================================
 
-# Poll an HTTP endpoint until it responds (HTTP 2xx) or timeout is reached.
-# Provides application-level validation beyond container state checks.
-# Usage: poll_http URL [TIMEOUT_SECONDS] [RETRY_INTERVAL_SECONDS]
-# Returns: 0 if endpoint responds within timeout, exits 3 otherwise.
+# Polls an HTTP endpoint for a 2xx response within a given timeout (Ref: docs/LIBRARY_REFERENCE.md)
 poll_http() {
     local url="${1:?poll_http requires a URL}"
     local timeout="${2:-30}"
@@ -76,10 +70,7 @@ poll_http() {
     return 1
 }
 
-# Run HTTP health checks for a set of named endpoints.
-# Aborts with exit 3 if any endpoint fails after its timeout.
-# Usage: check_http_health "label|url|timeout" ["label|url|timeout" ...]
-# Example: check_http_health "Caddy Admin|http://127.0.0.1:2019/config/|20"
+# Runs payload array of HTTP health checks and aborts on failures (Ref: docs/LIBRARY_REFERENCE.md)
 check_http_health() {
     local -a FAILED=()
 

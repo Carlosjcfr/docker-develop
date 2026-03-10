@@ -21,6 +21,7 @@ This document tracks the implementation status of all proposed features and arch
 | **Syntax Validation** | `TEMPLATE_OPTIMIZATION_PLAN.md` | `podman-compose config` check before deploy. |
 | **Arcane Sync Engine** | `ARCANE_ORGANIZATION_ANALYSIS.md` | Copy + Label patching (Replaces symlinks). |
 | **Dynamic Image Uninstall** | `TEMPLATE_OPTIMIZATION_PLAN.md` | Auto-detection in `lib.sh` via labels and compose parsing. |
+| **Library API Abstraction** | `LIBRARY_DOCUMENTATION_ANALYSIS.md` | Extracted generic documentation to markdown, slimming bash source. |
 
 ---
 
@@ -55,7 +56,6 @@ This document tracks the implementation status of all proposed features and arch
 
 | Feature | Source Document | Category |
 | :--- | :--- | :--- |
-| **Library API Abstraction** | `LIBRARY_DOCUMENTATION_ANALYSIS.md` | Documentation / Clean Code |
 | **Arcane Phase 2 (Webhook Agent)** | `ARCANE_EVOLUTION_ANALYSIS.md` | Management / UX |
 | **Metadata Labels (Icons/Groups)** | `ARCANE_ORGANIZATION_ANALYSIS.md` | UI / Aesthetics |
 | **Simplified Container Naming** | `ARCANE_ORGANIZATION_ANALYSIS.md` | Architecture / UX |

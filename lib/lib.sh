@@ -19,8 +19,7 @@ err()  { echo "[$(date -u '+%H:%M:%S')] [ERROR] $*" >&2; }
 # GUARDS
 # =============================================================================
 
-# Abort if the script is running as root.
-# Rootless Podman must run as a normal user to maintain namespaced isolation.
+# Enforces rootless execution (Ref: docs/LIBRARY_REFERENCE.md)
 root_protection() {
     if [[ $EUID -eq 0 ]]; then
         echo "-----------------------------------------------------------------"
@@ -33,8 +32,7 @@ root_protection() {
     fi
 }
 
-# Verify that all required commands exist in PATH.
-# Usage: check_dependencies CMD [CMD ...]
+# Verifies required commands exist in PATH (Ref: docs/LIBRARY_REFERENCE.md)
 check_dependencies() {
     for cmd in "$@"; do
         if ! command -v "$cmd" &>/dev/null; then
@@ -44,9 +42,7 @@ check_dependencies() {
     done
 }
 
-# Validate that no secret variable names appear in a config file.
-# Secrets must never be committed to the repository.
-# Usage: check_secrets_not_in_config CONFIG_FILE SECRET_NAME [SECRET_NAME ...]
+# Ensures no secret keys are hardcoded in config files (Ref: docs/LIBRARY_REFERENCE.md)
 check_secrets_not_in_config() {
     local config_file="${1:?check_secrets_not_in_config requires a config file path}"
     shift
@@ -63,10 +59,7 @@ check_secrets_not_in_config() {
     done
 }
 
-# Validate that the installation directory is writable by the current user.
-# If /opt is root-owned and the prerequisite step was skipped, fail early.
-# Exit code 2 = missing prerequisite: install directory not writable.
-# Usage: check_install_dir_writable DIR
+# Validates or creates the installation directory with elevated permissions if needed (Ref: docs/LIBRARY_REFERENCE.md)
 check_install_dir_writable() {
     local dir="${1:?check_install_dir_writable requires a directory argument}"
     
@@ -98,8 +91,7 @@ check_install_dir_writable() {
 # ENVIRONMENT BOOTSTRAP
 # =============================================================================
 
-# Enable user lingering and ensure the Podman socket is active.
-# Sets globals: PUID, PGID, USER_NAME, PODMAN_SOCK
+# Enables user lingering and verifies Podman socket (Ref: docs/LIBRARY_REFERENCE.md)
 # shellcheck disable=SC2034
 setup_lingering_and_socket() {
     PUID=$(id -u)
@@ -126,9 +118,7 @@ setup_lingering_and_socket() {
     fi
 }
 
-# Allow rootless Podman to bind privileged ports (< 1024).
-# Persists the kernel parameter across reboots via /etc/sysctl.d/.
-# Only call this for services that require ports 80 or 443.
+# Enables rootless Podman to bind privileged ports < 1024 (Ref: docs/LIBRARY_REFERENCE.md)
 enable_privileged_ports() {
     local CURRENT
     CURRENT=$(sysctl -n net.ipv4.ip_unprivileged_port_start 2>/dev/null || echo "1024")
@@ -151,9 +141,7 @@ enable_privileged_ports() {
 # CLI ARGUMENTS
 # =============================================================================
 
-# Parse common CLI arguments for service scripts.
-# Usage: parse_args "$@"
-# Sets globals: CMD_ACTION, FORCE_YES, DRY_RUN
+# Parses CLI arguments and sets CMD_ACTION, FORCE_YES, DRY_RUN (Ref: docs/LIBRARY_REFERENCE.md)
 # shellcheck disable=SC2034
 parse_args() {
     CMD_ACTION=""
@@ -178,10 +166,7 @@ parse_args() {
 # FILE MANAGEMENT
 # =============================================================================
 
-# Download files from the repository into a fresh temp directory.
-# Creates $TMP_DIR and registers an EXIT trap to clean it automatically.
-# Usage: download_repo_files BASE_URL FILE [FILE ...]
-# Sets global: TMP_DIR
+# Downloads repository files into a fresh auto-cleaned temp directory (Ref: docs/LIBRARY_REFERENCE.md)
 download_repo_files() {
     local base_url="${1:?download_repo_files requires a base URL}"
     shift
@@ -196,9 +181,7 @@ download_repo_files() {
     log "Files downloaded."
 }
 
-# Offer an optional interactive configuration step when running in a terminal.
-# Downloads and runs configure.sh, which edits $TMP_DIR/config.env.
-# Requires globals: REPO_RAW, TMP_DIR
+# Offers interactive configuration step via TTY if FORCE_YES=0 (Ref: docs/LIBRARY_REFERENCE.md)
 offer_interactive_mode() {
     if [ "${FORCE_YES:-0}" -eq 1 ]; then
         return
@@ -218,9 +201,7 @@ offer_interactive_mode() {
 # CONFIGURATION
 # =============================================================================
 
-# Auto-detect the host IP from the default network route.
-# If HOST_IP is already set (e.g. from config.env or env var), it is preserved.
-# Sets global: HOST_IP
+# Auto-detects the primary host IP address (Ref: docs/LIBRARY_REFERENCE.md)
 detect_host_ip() {
     if [ -z "${HOST_IP:-}" ]; then
         local INTERFACE
@@ -237,9 +218,7 @@ detect_host_ip() {
     fi
 }
 
-# Reuse existing secrets from .env or generate new ones.
-# Each secret is exported as a bash variable in the calling scope.
-# Usage: manage_credentials INSTALL_DIR SECRET_NAME [SECRET_NAME ...]
+# Reuses existing secrets or securely generates new hexadecimal keys (Ref: docs/LIBRARY_REFERENCE.md)
 manage_credentials() {
     local install_dir="${1:?manage_credentials requires INSTALL_DIR}"
     shift
@@ -272,10 +251,7 @@ manage_credentials() {
 # DEPLOYMENT VALIDATION
 # =============================================================================
 
-# Verify that all specified containers are in 'running' state.
-# podman-compose up -d always exits 0 — this catches silent failures.
-# Usage: verify_containers_running CONTAINER [CONTAINER ...]
-# Exit code 3 = deployment failed: one or more containers not running.
+# Verifies specified containers are in a 'running' state post-deployment (Ref: docs/LIBRARY_REFERENCE.md)
 verify_containers_running() {
     local -a REQUIRED=("$@")
     local -a FAILED=()
@@ -322,10 +298,7 @@ verify_containers_running() {
 # HTTP HEALTH CHECKS  (F3.4)
 # =============================================================================
 
-# Poll an HTTP endpoint until it responds (HTTP 2xx) or timeout is reached.
-# Provides application-level validation beyond container state checks.
-# Usage: poll_http URL [TIMEOUT_SECONDS] [RETRY_INTERVAL_SECONDS]
-# Returns: 0 if endpoint responds within timeout, exits 3 otherwise.
+# Polls an HTTP endpoint for a 2xx response within a given timeout (Ref: docs/LIBRARY_REFERENCE.md)
 poll_http() {
     local url="${1:?poll_http requires a URL}"
     local timeout="${2:-30}"
@@ -346,10 +319,7 @@ poll_http() {
     return 1
 }
 
-# Run HTTP health checks for a set of named endpoints.
-# Aborts with exit 3 if any endpoint fails after its timeout.
-# Usage: check_http_health "label|url|timeout" ["label|url|timeout" ...]
-# Example: check_http_health "Caddy Admin|http://127.0.0.1:2019/config/|20"
+# Runs payload array of HTTP health checks and aborts on failures (Ref: docs/LIBRARY_REFERENCE.md)
 check_http_health() {
     local -a FAILED=()
 
@@ -387,8 +357,7 @@ check_http_health() {
 # ATOMIC UNINSTALLATION ENGINE
 # =============================================================================
 
-# Internal helper to extract resources from a project directory.
-# Uses podman-compose to parse the YAML and resolve variables.
+# Internal helper to extract resources from podman-compose configs (Ref: docs/LIBRARY_REFERENCE.md)
 _discover_compose_resources() {
     local dir="${1:?_discover_compose_resources requires a directory}"
     local compose_file="$dir/docker-compose.yml"
@@ -407,19 +376,7 @@ _discover_compose_resources() {
     fi
 }
 
-# Centralized uninstallation logic for all services.
-# Supports Dynamic Discovery: if docker-compose.yml exists, it ignores manual 
-# arrays unless discovery fails.
-# Requires:
-#   UNINSTALL_SVC_NAME      (string) e.g. "ARCANE"
-#   UNINSTALL_SYSTEMD       (string) e.g. "container-arcane.service"
-#   INSTALL_DIR             (string) e.g. "/opt/arcane"
-# Optional overrides (used as fallbacks):
-#   UNINSTALL_CONTAINERS    (array)
-#   UNINSTALL_IMAGES        (array)
-#   UNINSTALL_VOLUMES       (array)
-#   UNINSTALL_DIRS          (array)
-#   UNINSTALL_DATA_WARN     (string)
+# Atomic uninstallation engine with dynamic discovery and manual fallbacks (Ref: docs/LIBRARY_REFERENCE.md)
 uninstall_generic_service() {
     # Discovery Phase
     local -a discovered_imgs=()
@@ -556,9 +513,7 @@ uninstall_generic_service() {
 # ARCANE INTEGRATION
 # =============================================================================
 
-# Register the service as a "Project" in Arcane by copying configs.
-# Arcane maps its internal /app/data/projects to host /opt/arcane/projects.
-# Usage: register_arcane_project PROJECT_NAME INSTALL_DIR
+# Syncs service configurations to Arcane's dashboard and patches labels (Ref: docs/LIBRARY_REFERENCE.md)
 register_arcane_project() {
     local project_name="${1:?register_arcane_project requires a project name}"
     local install_dir="${2:?register_arcane_project requires an installation directory}"

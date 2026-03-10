@@ -10,8 +10,7 @@ err()  { echo "[$(date -u '+%H:%M:%S')] [ERROR] $*" >&2; }
 # GUARDS
 # =============================================================================
 
-# Abort if the script is running as root.
-# Rootless Podman must run as a normal user to maintain namespaced isolation.
+# Enforces rootless execution (Ref: docs/LIBRARY_REFERENCE.md)
 root_protection() {
     if [[ $EUID -eq 0 ]]; then
         echo "-----------------------------------------------------------------"
@@ -24,8 +23,7 @@ root_protection() {
     fi
 }
 
-# Verify that all required commands exist in PATH.
-# Usage: check_dependencies CMD [CMD ...]
+# Verifies required commands exist in PATH (Ref: docs/LIBRARY_REFERENCE.md)
 check_dependencies() {
     for cmd in "$@"; do
         if ! command -v "$cmd" &>/dev/null; then
@@ -35,9 +33,7 @@ check_dependencies() {
     done
 }
 
-# Validate that no secret variable names appear in a config file.
-# Secrets must never be committed to the repository.
-# Usage: check_secrets_not_in_config CONFIG_FILE SECRET_NAME [SECRET_NAME ...]
+# Ensures no secret keys are hardcoded in config files (Ref: docs/LIBRARY_REFERENCE.md)
 check_secrets_not_in_config() {
     local config_file="${1:?check_secrets_not_in_config requires a config file path}"
     shift
@@ -54,10 +50,7 @@ check_secrets_not_in_config() {
     done
 }
 
-# Validate that the installation directory is writable by the current user.
-# If /opt is root-owned and the prerequisite step was skipped, fail early.
-# Exit code 2 = missing prerequisite: install directory not writable.
-# Usage: check_install_dir_writable DIR
+# Validates or creates the installation directory with elevated permissions if needed (Ref: docs/LIBRARY_REFERENCE.md)
 check_install_dir_writable() {
     local dir="${1:?check_install_dir_writable requires a directory argument}"
     

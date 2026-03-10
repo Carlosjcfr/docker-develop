@@ -2,9 +2,7 @@
 # ARCANE INTEGRATION
 # =============================================================================
 
-# Register the service as a "Project" in Arcane by copying configs.
-# Arcane maps its internal /app/data/projects to host /opt/arcane/projects.
-# Usage: register_arcane_project PROJECT_NAME INSTALL_DIR
+# Syncs service configurations to Arcane's dashboard and patches labels (Ref: docs/LIBRARY_REFERENCE.md)
 register_arcane_project() {
     local project_name="${1:?register_arcane_project requires a project name}"
     local install_dir="${2:?register_arcane_project requires an installation directory}"

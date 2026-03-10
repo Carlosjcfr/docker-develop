@@ -2,8 +2,7 @@
 # ENVIRONMENT BOOTSTRAP
 # =============================================================================
 
-# Enable user lingering and ensure the Podman socket is active.
-# Sets globals: PUID, PGID, USER_NAME, PODMAN_SOCK
+# Enables user lingering and verifies Podman socket (Ref: docs/LIBRARY_REFERENCE.md)
 # shellcheck disable=SC2034
 setup_lingering_and_socket() {
     PUID=$(id -u)
@@ -30,9 +29,7 @@ setup_lingering_and_socket() {
     fi
 }
 
-# Allow rootless Podman to bind privileged ports (< 1024).
-# Persists the kernel parameter across reboots via /etc/sysctl.d/.
-# Only call this for services that require ports 80 or 443.
+# Enables rootless Podman to bind privileged ports < 1024 (Ref: docs/LIBRARY_REFERENCE.md)
 enable_privileged_ports() {
     local CURRENT
     CURRENT=$(sysctl -n net.ipv4.ip_unprivileged_port_start 2>/dev/null || echo "1024")
@@ -55,9 +52,7 @@ enable_privileged_ports() {
 # CLI ARGUMENTS
 # =============================================================================
 
-# Parse common CLI arguments for service scripts.
-# Usage: parse_args "$@"
-# Sets globals: CMD_ACTION, FORCE_YES, DRY_RUN
+# Parses CLI arguments and sets CMD_ACTION, FORCE_YES, DRY_RUN (Ref: docs/LIBRARY_REFERENCE.md)
 # shellcheck disable=SC2034
 parse_args() {
     CMD_ACTION=""
@@ -82,10 +77,7 @@ parse_args() {
 # FILE MANAGEMENT
 # =============================================================================
 
-# Download files from the repository into a fresh temp directory.
-# Creates $TMP_DIR and registers an EXIT trap to clean it automatically.
-# Usage: download_repo_files BASE_URL FILE [FILE ...]
-# Sets global: TMP_DIR
+# Downloads repository files into a fresh auto-cleaned temp directory (Ref: docs/LIBRARY_REFERENCE.md)
 download_repo_files() {
     local base_url="${1:?download_repo_files requires a base URL}"
     shift
@@ -100,9 +92,7 @@ download_repo_files() {
     log "Files downloaded."
 }
 
-# Offer an optional interactive configuration step when running in a terminal.
-# Downloads and runs configure.sh, which edits $TMP_DIR/config.env.
-# Requires globals: REPO_RAW, TMP_DIR
+# Offers interactive configuration step via TTY if FORCE_YES=0 (Ref: docs/LIBRARY_REFERENCE.md)
 offer_interactive_mode() {
     if [ "${FORCE_YES:-0}" -eq 1 ]; then
         return
@@ -122,9 +112,7 @@ offer_interactive_mode() {
 # CONFIGURATION
 # =============================================================================
 
-# Auto-detect the host IP from the default network route.
-# If HOST_IP is already set (e.g. from config.env or env var), it is preserved.
-# Sets global: HOST_IP
+# Auto-detects the primary host IP address (Ref: docs/LIBRARY_REFERENCE.md)
 detect_host_ip() {
     if [ -z "${HOST_IP:-}" ]; then
         local INTERFACE
@@ -141,9 +129,7 @@ detect_host_ip() {
     fi
 }
 
-# Reuse existing secrets from .env or generate new ones.
-# Each secret is exported as a bash variable in the calling scope.
-# Usage: manage_credentials INSTALL_DIR SECRET_NAME [SECRET_NAME ...]
+# Reuses existing secrets or securely generates new hexadecimal keys (Ref: docs/LIBRARY_REFERENCE.md)
 manage_credentials() {
     local install_dir="${1:?manage_credentials requires INSTALL_DIR}"
     shift

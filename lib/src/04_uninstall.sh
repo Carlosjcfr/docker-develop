@@ -2,8 +2,7 @@
 # ATOMIC UNINSTALLATION ENGINE
 # =============================================================================
 
-# Internal helper to extract resources from a project directory.
-# Uses podman-compose to parse the YAML and resolve variables.
+# Internal helper to extract resources from podman-compose configs (Ref: docs/LIBRARY_REFERENCE.md)
 _discover_compose_resources() {
     local dir="${1:?_discover_compose_resources requires a directory}"
     local compose_file="$dir/docker-compose.yml"
@@ -22,19 +21,7 @@ _discover_compose_resources() {
     fi
 }
 
-# Centralized uninstallation logic for all services.
-# Supports Dynamic Discovery: if docker-compose.yml exists, it ignores manual 
-# arrays unless discovery fails.
-# Requires:
-#   UNINSTALL_SVC_NAME      (string) e.g. "ARCANE"
-#   UNINSTALL_SYSTEMD       (string) e.g. "container-arcane.service"
-#   INSTALL_DIR             (string) e.g. "/opt/arcane"
-# Optional overrides (used as fallbacks):
-#   UNINSTALL_CONTAINERS    (array)
-#   UNINSTALL_IMAGES        (array)
-#   UNINSTALL_VOLUMES       (array)
-#   UNINSTALL_DIRS          (array)
-#   UNINSTALL_DATA_WARN     (string)
+# Atomic uninstallation engine with dynamic discovery and manual fallbacks (Ref: docs/LIBRARY_REFERENCE.md)
 uninstall_generic_service() {
     # Discovery Phase
     local -a discovered_imgs=()
