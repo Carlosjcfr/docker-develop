@@ -100,7 +100,7 @@ deploy_and_persist() {
     sed -i "s|\\\\set jwt_secret \`echo \"\$JWT_SECRET\"\`|\\\\set jwt_secret '${JWT_SECRET}'|g" "$INSTALL_DIR/volumes/db/jwt.sql"
     sed -i "s|\\\\set jwt_exp \`echo \"\$JWT_EXP\"\`|\\\\set jwt_exp '${JWT_EXPIRY}'|g" "$INSTALL_DIR/volumes/db/jwt.sql"
 
-    podman-compose config -q || err "Invalid docker-compose syntax. Aborting installation."
+    podman-compose config > /dev/null 2>&1 || { err "Invalid docker-compose syntax. Aborting installation."; exit 1; }
 
     log "Pulling container images (this process is silent and may take a while)..."
     if ! podman-compose pull > /dev/null 2>&1; then
@@ -218,7 +218,7 @@ do_uninstall() {
     
     if [ -f "$INSTALL_DIR/docker-compose.yml" ]; then
         cd "$INSTALL_DIR"
-        UNINSTALL_IMAGES=($(podman-compose config -q | grep 'image:' | awk '{print $2}' || true))
+        UNINSTALL_IMAGES=($(podman-compose config | grep 'image:' | awk '{print $2}' || true))
         cd - >/dev/null
     else
         UNINSTALL_IMAGES=("docker.io/supabase/postgres:\${POSTGRES_VERSION}" "docker.io/supabase/studio:\${STUDIO_VERSION}" "docker.io/library/kong:\${KONG_VERSION}" "docker.io/supabase/gotrue:\${GOTRUE_VERSION}" "docker.io/postgrest/postgrest:\${POSTGREST_VERSION}" "docker.io/supabase/realtime:\${REALTIME_VERSION}" "docker.io/supabase/postgres-meta:\${META_VERSION}" "docker.io/supabase/storage-api:\${STORAGE_VERSION}")
