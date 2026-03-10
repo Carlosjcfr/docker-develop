@@ -32,6 +32,30 @@ on:
 jobs:
 
   # ============================================================================
+  # JOB 0 — Auto Build lib.sh
+  # Compiles lib/src/*.sh into lib/lib.sh and auto-commits if changes exist.
+  # ============================================================================
+  auto-build:
+    name: Auto-compile lib.sh
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref || github.ref_name }}
+
+      - name: Build lib.sh from sources
+        run: bash lib/build.sh
+
+      - name: Commit and push changes
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "chore(lib): auto-compile lib.sh from sources"
+          file_pattern: "lib/lib.sh"
+
+  # ============================================================================
   # JOB 1 — ShellCheck (static analysis)
   # ============================================================================
   shellcheck:
@@ -41,6 +65,9 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      - name: Ensure lib.sh is built
+        run: bash lib/build.sh
 
       - name: Install ShellCheck
         run: sudo apt-get install -y shellcheck
@@ -78,6 +105,9 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Ensure lib.sh is built
+        run: bash lib/build.sh
+
       - name: Check syntax of all shell scripts
         run: |
           error=0
@@ -110,6 +140,9 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      - name: Ensure lib.sh is built
+        run: bash lib/build.sh
 
       - name: Scan all config.env files for committed secrets
         run: |
@@ -146,6 +179,9 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      - name: Ensure lib.sh is built
+        run: bash lib/build.sh
 
       - name: Unit-test parse_args from lib.sh
         run: |
