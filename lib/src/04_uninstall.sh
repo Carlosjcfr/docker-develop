@@ -36,9 +36,9 @@ _discover_compose_resources() {
 #   UNINSTALL_DIRS          (array)
 #   UNINSTALL_DATA_WARN     (string)
 uninstall_generic_service() {
-    # 1. Discovery Phase
+    # Discovery Phase
     local -a discovered_imgs=()
-    local -a discovered_containers=()
+    # shellcheck disable=SC2153
     local compose_file="${INSTALL_DIR}/docker-compose.yml"
 
     if [ -f "$compose_file" ]; then
@@ -46,11 +46,13 @@ uninstall_generic_service() {
         # Extract images using a robust grep/awk on the resolve config
         # We use a subshell to avoid changing the current directory
         local raw_config
-        raw_config=$(cd "$INSTALL_DIR" && podman-compose config 2>/dev/null || true)
+        raw_config=$( (cd "$INSTALL_DIR" && podman-compose config) 2>/dev/null || true)
         
         if [ -n "$raw_config" ]; then
             while read -r img; do
-                [ -n "$img" ] && discovered_imgs+=("$img")
+                if [ -n "$img" ]; then
+                    discovered_imgs+=("$img")
+                fi
             done < <(echo "$raw_config" | grep 'image:' | awk '{print $2}' | tr -d '"' | tr -d "'" | sort -u)
             
             # For containers, if they aren't explicit in 'container_name', 
@@ -100,7 +102,9 @@ uninstall_generic_service() {
     # If we have manual containers, remove them. 
     # Also, try to remove by project label if podman-compose was used.
     for c in "${local_containers[@]}"; do
-        [ -n "$c" ] && podman rm -f "$c" 2>/dev/null || true
+        if [ -n "$c" ]; then
+            podman rm -f "$c" 2>/dev/null || true
+        fi
     done
     
     # Advanced: Try to find containers by the directory name if it matches podman-compose pattern
@@ -110,7 +114,9 @@ uninstall_generic_service() {
 
     log "Removing image(s)..."
     for i in "${UNINSTALL_IMAGES[@]}"; do
-        [ -n "$i" ] && podman rmi "$i" 2>/dev/null || true
+        if [ -n "$i" ]; then
+            podman rmi "$i" 2>/dev/null || true
+        fi
     done
 
     echo ""
@@ -133,7 +139,11 @@ uninstall_generic_service() {
     if [[ "$DELETE_DATA" =~ ^[Yy]$ ]]; then
         log "Removing configuration, data, and installation directory..."
         if [ ${#local_volumes[@]} -gt 0 ] && [ -n "${local_volumes[0]:-}" ]; then
-            for v in "${local_volumes[@]}"; do [ -n "$v" ] && podman volume rm "$v" 2>/dev/null || true; done
+            for v in "${local_volumes[@]}"; do 
+                if [ -n "$v" ]; then
+                    podman volume rm "$v" 2>/dev/null || true
+                fi
+            done
         fi
         if [ ${#local_dirs[@]} -gt 0 ] && [ -n "${local_dirs[0]:-}" ]; then
             for d in "${local_dirs[@]}"; do [ -n "$d" ] && sudo rm -rf "$d"; done

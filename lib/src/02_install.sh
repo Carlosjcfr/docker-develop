@@ -4,6 +4,7 @@
 
 # Enable user lingering and ensure the Podman socket is active.
 # Sets globals: PUID, PGID, USER_NAME, PODMAN_SOCK
+# shellcheck disable=SC2034
 setup_lingering_and_socket() {
     PUID=$(id -u)
     PGID=$(id -g)
@@ -57,6 +58,7 @@ enable_privileged_ports() {
 # Parse common CLI arguments for service scripts.
 # Usage: parse_args "$@"
 # Sets globals: CMD_ACTION, FORCE_YES, DRY_RUN
+# shellcheck disable=SC2034
 parse_args() {
     CMD_ACTION=""
     FORCE_YES=0
