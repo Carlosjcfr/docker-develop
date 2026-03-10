@@ -92,7 +92,7 @@ deploy_and_persist() {
     log "Starting services with podman-compose..."
     cd "$INSTALL_DIR"
     
-    podman-compose config -q || err "Sintaxis de docker-compose invalida. Abortando instalación."
+    podman-compose config >/dev/null 2>&1 || { err "Sintaxis de docker-compose invalida. Abortando instalación."; exit 1; }
     
     log "Extrayendo imágenes de contenedor..."
     if ! podman-compose pull > /dev/null 2>&1; then

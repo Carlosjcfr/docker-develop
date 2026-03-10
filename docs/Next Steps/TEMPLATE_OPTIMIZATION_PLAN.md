@@ -37,16 +37,10 @@ Para evitar repetir código en cada script, podríamos plantear mover esta lógi
 Ejecutar `podman-compose config -q` para validar la sintaxis YAML antes de intentar empaquetar o levantar.
 
 **Ventajas (Pros):**
-- **Fallo Rápido (Fail-fast):** Atrapa errores de indentación YAML, variables mal sustituidas o incompatibilidades de versión antes de ensuciar el entorno de Podman.
-- **Trazabilidad:** Proporciona un mensaje de error claro al usuario sobre fallos de formato.
-
-**Desventajas (Contras):**
-- Incrementa ligeramente el tiempo de ejecución (milisegundos).
-
-**Solución/Implementación Posible:**
-Integrarlo directamente dentro de `deploy_and_persist`:
+## 2. Sintaxis de Compose Segura
+Antes de hacer `pull` o `up`, validaremos si el YAML mal copiado te daría un error catastrófico:
 ```bash
-podman-compose config -q || err "Sintaxis de docker-compose inválida. Abortando instalación/actualización."
+podman-compose config >/dev/null 2>&1 || { err "Sintaxis de docker-compose inválida. Abortando instalación/actualización."; exit 1; }
 ```
 
 ---
