@@ -469,3 +469,31 @@ uninstall_generic_service() {
     echo " ${UNINSTALL_SVC_NAME} has been uninstalled."
     echo "================================================================="
 }
+# =============================================================================
+# ARCANE INTEGRATION
+# =============================================================================
+
+# Register the service as a "Project" in Arcane by creating a symlink.
+# Arcane maps its internal /app/data/projects to host /opt/arcane/projects.
+# Usage: register_arcane_project PROJECT_NAME INSTALL_DIR
+register_arcane_project() {
+    local project_name="${1:?register_arcane_project requires a project name}"
+    local install_dir="${2:?register_arcane_project requires an installation directory}"
+    local arcane_projects_dir="/opt/arcane/projects"
+
+    log "Registering project '$project_name' in Arcane..."
+
+    # Ensure the parent directory exists and is writable
+    if ! [ -d "$arcane_projects_dir" ]; then
+        if sudo mkdir -p "$arcane_projects_dir" && sudo chown -R "$USER:$USER" "$arcane_projects_dir" 2>/dev/null; then
+            log "  Created Arcane projects directory: $arcane_projects_dir"
+        else
+            warn "  Could not create Arcane projects directory. Skipping registration."
+            return 1
+        fi
+    fi
+
+    # Create/update symlink
+    ln -sfn "$install_dir" "$arcane_projects_dir/$project_name"
+    log "  Symlink created: $arcane_projects_dir/$project_name -> $install_dir"
+}

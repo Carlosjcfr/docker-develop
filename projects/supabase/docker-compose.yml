@@ -2,9 +2,13 @@ version: '3.8'
 
 services:
   db:
-    container_name: supabase-db
+    container_name: db
     image: docker.io/supabase/postgres:${POSTGRES_VERSION}
     restart: unless-stopped
+    labels:
+      - "dev.arcane.icon=${ARCANE_ICON:-si:supabase}"
+      - "dev.arcane.category=${ARCANE_CATEGORY:-Database}"
+      - "com.docker.compose.project=supabase"
     ports:
       - "${POSTGRES_PORT}:5432"
     environment:
@@ -20,8 +24,9 @@ services:
       - ./volumes/db/logs.sql:/docker-entrypoint-initdb.d/migrations/99-logs.sql:Z
       - ./volumes/db/pooler.sql:/docker-entrypoint-initdb.d/migrations/99-pooler.sql:Z
       - supabase_db_data:/var/lib/postgresql/data:Z
+
   studio:
-    container_name: supabase-studio
+    container_name: studio
     image: docker.io/supabase/studio:${STUDIO_VERSION}
     restart: unless-stopped
     ports:
@@ -33,7 +38,7 @@ services:
       SUPABASE_REST_URL: http://${HOST_IP}:${KONG_PORT}/rest/v1/
 
   auth:
-    container_name: supabase-auth
+    container_name: auth
     image: docker.io/supabase/gotrue:${GOTRUE_VERSION}
     restart: unless-stopped
     environment:
@@ -46,7 +51,7 @@ services:
       API_EXTERNAL_URL: http://${HOST_IP}:${KONG_PORT}
 
   rest:
-    container_name: supabase-rest
+    container_name: rest
     image: docker.io/postgrest/postgrest:${POSTGREST_VERSION}
     restart: unless-stopped
     environment:
@@ -59,7 +64,7 @@ services:
       PGRST_APP_SETTINGS_JWT_EXP: ${JWT_EXPIRY}
 
   realtime:
-    container_name: supabase-realtime
+    container_name: realtime
     image: docker.io/supabase/realtime:${REALTIME_VERSION}
     restart: unless-stopped
     environment:
@@ -82,7 +87,7 @@ services:
       DISABLE_HEALTHCHECK_LOGGING: "true"
 
   meta:
-    container_name: supabase-meta
+    container_name: meta
     image: docker.io/supabase/postgres-meta:${META_VERSION}
     restart: unless-stopped
     environment:
@@ -93,7 +98,7 @@ services:
       PG_META_DB_PASSWORD: ${POSTGRES_PASSWORD}
 
   storage:
-    container_name: supabase-storage
+    container_name: storage
     image: docker.io/supabase/storage-api:${STORAGE_VERSION}
     restart: unless-stopped
     environment:
@@ -108,7 +113,7 @@ services:
       - supabase_storage_data:/var/lib/storage:Z
 
   kong:
-    container_name: supabase-kong
+    container_name: kong
     image: docker.io/library/kong:${KONG_VERSION}
     restart: unless-stopped
     ports:

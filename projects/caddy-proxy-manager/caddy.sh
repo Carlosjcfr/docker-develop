@@ -72,6 +72,8 @@ load_configuration() {
     PING_INTERVAL="${PING_INTERVAL:-30000}"
     PING_TIMEOUT="${PING_TIMEOUT:-2000}"
     METRICS_HISTORY_MAX="${METRICS_HISTORY_MAX:-1000}"
+    ARCANE_ICON="${ARCANE_ICON:-si:caddy}"
+    ARCANE_CATEGORY="${ARCANE_CATEGORY:-Proxy}"
 
     log "Configuration loaded (INSTALL_DIR=$INSTALL_DIR, UI_PORT=$CADDYMANAGER_UI_PORT)."
 }
@@ -124,6 +126,10 @@ PING_TIMEOUT="$PING_TIMEOUT"
 
 # --- Metrics ---
 METRICS_HISTORY_MAX="$METRICS_HISTORY_MAX"
+
+# --- Arcane ---
+ARCANE_ICON="$ARCANE_ICON"
+ARCANE_CATEGORY="$ARCANE_CATEGORY"
 EOF
 
     umask "$OLD_UMASK"
@@ -225,7 +231,9 @@ do_install() {
     prepare_directories
     generate_runtime_env
     deploy_and_persist
+    register_arcane_project "caddy" "$INSTALL_DIR"
     print_success
+
 }
 
 do_start() {
@@ -268,7 +276,9 @@ do_update() {
     podman-compose pull
 
     deploy_and_persist
+    register_arcane_project "caddy" "$INSTALL_DIR"
     print_success
+
 }
 
 do_uninstall() {

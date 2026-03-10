@@ -25,6 +25,9 @@ load_configuration() {
 
     GOTRUE_DB_DRIVER="${GOTRUE_DB_DRIVER:-postgres}"
     JWT_EXPIRY="${JWT_EXPIRY:-3600}"
+
+    ARCANE_ICON="${ARCANE_ICON:-si:supabase}"
+    ARCANE_CATEGORY="${ARCANE_CATEGORY:-Database}"
 }
 
 generate_runtime_env() {
@@ -57,6 +60,10 @@ META_VERSION="$META_VERSION"
 STORAGE_VERSION="$STORAGE_VERSION"
 GOTRUE_DB_DRIVER="$GOTRUE_DB_DRIVER"
 JWT_EXPIRY="$JWT_EXPIRY"
+
+# --- Arcane ---
+ARCANE_ICON="$ARCANE_ICON"
+ARCANE_CATEGORY="$ARCANE_CATEGORY"
 EOF
     umask "$OLD_UMASK"
 
@@ -126,7 +133,7 @@ deploy_and_persist() {
     log "Starting containers..."
     podman-compose up -d > /dev/null 2>&1
 
-    verify_containers_running "supabase-db" "supabase-studio" "supabase-kong" "supabase-auth" "supabase-rest" "supabase-realtime" "supabase-meta" "supabase-storage"
+    verify_containers_running "db" "studio" "kong" "auth" "rest" "realtime" "meta" "storage"
 
     rm -f "$INSTALL_DIR"/*.bak 2>/dev/null || true
 
@@ -188,7 +195,9 @@ do_install() {
 
     generate_runtime_env
     deploy_and_persist
+    register_arcane_project "supabase" "$INSTALL_DIR"
     print_success
+
 }
 
 do_start() {
@@ -214,14 +223,16 @@ do_update() {
     mv -f "$TMP_DIR/docker-compose.yml" "$INSTALL_DIR/docker-compose.yml"
 
     deploy_and_persist
+    register_arcane_project "supabase" "$INSTALL_DIR"
     print_success
+
 }
 
 do_uninstall() {
     INSTALL_DIR="${INSTALL_DIR:-/opt/supabase}"
     UNINSTALL_SVC_NAME="Supabase"
     UNINSTALL_SYSTEMD="container-supabase.service" 
-    UNINSTALL_CONTAINERS=("supabase-db" "supabase-studio" "supabase-kong" "supabase-auth" "supabase-rest" "supabase-realtime" "supabase-meta" "supabase-storage")
+    UNINSTALL_CONTAINERS=("db" "studio" "kong" "auth" "rest" "realtime" "meta" "storage")
     
     if [ -f "$INSTALL_DIR/docker-compose.yml" ]; then
         cd "$INSTALL_DIR"
@@ -237,7 +248,7 @@ do_uninstall() {
 
 check_existing_installation() {
     local dir="${1:-/opt/supabase}"
-    if [ -f "$dir/.env" ] && podman container exists supabase-db 2>/dev/null; then
+    if [ -f "$dir/.env" ] && podman container exists db 2>/dev/null; then
         return 0
     fi
     return 1

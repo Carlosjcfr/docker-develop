@@ -21,6 +21,10 @@ services:
     image: docker.io/lucaslorentz/caddy-docker-proxy:${CADDY_VERSION:-2.11-alpine}
     container_name: caddy
     restart: unless-stopped
+    labels:
+      - "dev.arcane.icon=${ARCANE_ICON:-si:caddy}"
+      - "dev.arcane.category=${ARCANE_CATEGORY:-Proxy}"
+      - "com.docker.compose.project=caddy"
 
     ports:
       - "80:80" # HTTP

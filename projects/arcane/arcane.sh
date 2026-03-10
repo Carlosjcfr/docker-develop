@@ -73,6 +73,9 @@ load_configuration() {
     AGENT_MODE="${AGENT_MODE:-false}"
     AGENT_TOKEN="${AGENT_TOKEN:-}"
 
+    ARCANE_ICON="${ARCANE_ICON:-si:arcane}"
+    ARCANE_CATEGORY="${ARCANE_CATEGORY:-Management}"
+
     log "Configuration loaded (INSTALL_DIR=$INSTALL_DIR, APP_PORT=$APP_PORT)."
 }
 
@@ -123,6 +126,10 @@ TLS_KEY_FILE="$TLS_KEY_FILE"
 # --- Agent ---
 AGENT_MODE="$AGENT_MODE"
 AGENT_TOKEN="$AGENT_TOKEN"
+
+# --- Arcane ---
+ARCANE_ICON="$ARCANE_ICON"
+ARCANE_CATEGORY="$ARCANE_CATEGORY"
 EOF
 
     umask "$OLD_UMASK"
@@ -214,7 +221,9 @@ do_install() {
 
     generate_runtime_env
     deploy_and_persist
+    register_arcane_project "arcane" "$INSTALL_DIR"
     print_success
+
 }
 
 do_start() {
@@ -260,7 +269,9 @@ do_update() {
     podman-compose pull
 
     deploy_and_persist
+    register_arcane_project "arcane" "$INSTALL_DIR"
     print_success
+
 }
 
 do_uninstall() {

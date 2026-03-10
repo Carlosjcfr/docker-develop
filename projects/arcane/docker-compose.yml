@@ -10,6 +10,10 @@ services:
     image: ghcr.io/getarcaneapp/arcane:${PACKAGE_VERSION:-latest}
     container_name: arcane
     restart: unless-stopped
+    labels:
+      - "dev.arcane.icon=${ARCANE_ICON:-si:arcane}"
+      - "dev.arcane.category=${ARCANE_CATEGORY:-Management}"
+      - "com.docker.compose.project=arcane"
 
     ports:
       - "${APP_PORT:-3552}:3552"
