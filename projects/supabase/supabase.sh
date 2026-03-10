@@ -154,7 +154,6 @@ ExecStart=$(command -v podman-compose) up -d
 ExecStop=$(command -v podman-compose) down
 TimeoutStartSec=120
 TimeoutStopSec=30
-
 [Install]
 WantedBy=default.target
 EOF
