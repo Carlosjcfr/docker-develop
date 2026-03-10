@@ -24,7 +24,7 @@ REPO_RAW="$REPO_BASE/projects/caddy-proxy-manager"
 # =============================================================================
 
 _LIB_URL="$REPO_BASE/lib/lib.sh"
-# shellcheck source=../../lib/lib.sh
+# shellcheck source=lib.sh
 if [[ -n "${LIB_LOCAL:-}" && -f "$LIB_LOCAL" ]]; then
     source "$LIB_LOCAL"
 else

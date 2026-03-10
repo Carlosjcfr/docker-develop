@@ -4,7 +4,7 @@ set -euo pipefail
 GIT_BRANCH="${GIT_BRANCH:-main}"
 REPO_BASE="${REPO_BASE:-https://raw.githubusercontent.com/Carlosjcfr/docker-develop/$GIT_BRANCH}"
 REPO_RAW="$REPO_BASE/projects/windmill"
-# shellcheck source=../../lib/lib.sh
+# shellcheck source=lib.sh
 source <(curl -fsSL "$REPO_BASE/lib/lib.sh")
 
 load_configuration() {
