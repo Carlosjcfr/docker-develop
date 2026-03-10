@@ -229,7 +229,7 @@ manage_credentials() {
         log "Existing secrets found. Reusing..."
         for key in "${keys[@]}"; do
             local val
-            val=$(grep "^${key}=" "$install_dir/.env" | cut -d '=' -f2-)
+            val=$(grep "^${key}=" "$install_dir/.env" | cut -d '=' -f2- | sed -e 's/^"//' -e 's/"$//' -e "s/^'//" -e "s/'$//")
             printf -v "$key" '%s' "$val"
         done
     else
