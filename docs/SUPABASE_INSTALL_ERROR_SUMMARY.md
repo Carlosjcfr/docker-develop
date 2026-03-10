@@ -5,10 +5,11 @@
 ## Error 5: Domino Effect (Clúster Descoyuntado por uso de ':latest')
 
 **Problema:**
-Al ejecutar el orquestador, varios contenedores empezaron a fallar en cascada: `supabase-studio` da estado `missing`, mientras que `supabase-auth`, `supabase-rest` y `supabase-realtime` quedan `stopped` (crasheados de inicio). 
+Al ejecutar el orquestador, varios contenedores empezaron a fallar en cascada: `supabase-studio` da estado `missing`, mientras que `supabase-auth`, `supabase-rest` y `supabase-realtime` quedan `stopped` (crasheados de inicio).
 
 **Causa Raíz:**
 Este es exactamente el escenario descrito en el `DYNAMIC_TAG_RESOLUTION_PLAN.md`.
+
 1. Hubo un micro-corte de red o una de las versiones hardcodeadas (como `20240409-bf25a81` de Studio) falló al descargar.
 2. El instalador saltó al modo interactivo de emergencia preguntando: *"¿Deseas sustituir dinámicamente todos los tags por 'latest'?"*.
 3. El usuario aceptó (`y`), forzando el comando `sed` a reescribir todo el `docker-compose.yml` para que apunte a `:latest`.
@@ -16,7 +17,8 @@ Este es exactamente el escenario descrito en el `DYNAMIC_TAG_RESOLUTION_PLAN.md`
 5. **¿Por qué los demás están stopped?** Contenedores como `auth` (gotrue) o `rest` (postgrest) SÍ publican una rama `latest`. Se descargaron con éxito, pero al encenderse (con versiones extremas recien salidas del horno) detectaron que estaban acoplados a un `postgres` con configuraciones incompatibles. Al no cuadrar las piezas del clúster, crashean instantáneamente por errores de base de datos y se detienen.
 
 **Solución Inmediata a Implementar:**
-El *Fallback* a `:latest` es útil para contenedores simples (como AdGuard o Nginx), pero es destructivo para Macro-Stacks (Supabase) donde todo está rígidamente interconectado. 
+El *Fallback* a `:latest` es útil para contenedores simples (como AdGuard o Nginx), pero es destructivo para Macro-Stacks (Supabase) donde todo está rígidamente interconectado.
+
 - Restablecer las variables del `config.env` original o eliminar la ruta corrupta (`rm -rf /opt/supabase` y reinstalar sin aceptar el parche de latest).
 - Alternativamente, blindar el `docker-compose.yml` de Supabase incluyendo dependencias de arranque fuertes (`depends_on: db`).
 
@@ -26,6 +28,7 @@ El *Fallback* a `:latest` es útil para contenedores simples (como AdGuard o Ngi
 
 **Problema:**
 Al resolver las versiones correctas en el `docker-compose.yml` de Supabase, los servicios `supabase-auth` y `supabase-storage` vuelven a quedar `stopped` al intentar arrancar.
+
 - El log de **Auth** indica: `Failed to load configuration: required key API_EXTERNAL_URL missing value`.
 - El log de **Storage** indica un fallo fatal: `permission denied for schema storage` durante las migraciones de base de datos.
 
@@ -33,12 +36,13 @@ Al resolver las versiones correctas en el `docker-compose.yml` de Supabase, los 
 Tras contrastar nuestra instalación con soluciones robustas como Coolify y escrutar el repositorio oficial de Supabase Docker (`https://github.com/supabase/supabase`), la causa raíz es **la mutilación arquitectónica al inventar el Docker Compose**:
 
 1. **Variables Críticas Omitidas:** El ecosistema es masivo y las iteraciones modernas de GoTrue exigen que el `docker-compose.yml` posea variables como `API_EXTERNAL_URL` mapeadas explícitamente para los callbacks OAuth, las cuales la IA original ignoró en su instanciación.
-2. **Missing Volumes (El Núcleo del Fallo):** Supabase **no** usa una imagen pre-compilada "mágica" de Postgres. En el repositorio oficial, la base de datos se inicializa inyectando (vía Docker Volumes) unos **7 scripts SQL gigantes** (`roles.sql`, `jwt.sql`, `realtime.sql`, etc.) ubicados en la carpeta `docker/volumes/db/`. 
+2. **Missing Volumes (El Núcleo del Fallo):** Supabase **no** usa una imagen pre-compilada "mágica" de Postgres. En el repositorio oficial, la base de datos se inicializa inyectando (vía Docker Volumes) unos **7 scripts SQL gigantes** (`roles.sql`, `jwt.sql`, `realtime.sql`, etc.) ubicados en la carpeta `docker/volumes/db/`.
 Al generar un `docker-compose.yml` minimizado y arrancar el contenedor "desnudo", Postgres se encendió como un motor genérico sin los roles internos (`supabase_admin`, `authenticator`) ni los esquemas lógicos (`storage`, `auth`) pre-creados. En consecuencia, cuando `supabase-storage` intentó conectarse, recibió un *"permission denied"* porque tal esquema ni existía ni él tenía privilegios.
 
 **Solución Sistémica a Implementar:**
 Plataformas como Coolify **no** intentan reescribir, resumir o "adivinar" el Docker Compose de Supabase; instancian repositorios complejos clonando la arquitectura completa y fiel del fabricante ("One-Click Apps").
-- Para solucionar esto estructuralmente en tu framework, la IA jamás debe intentar reconstruir de memoria la estructura de dependencias de un Macro-Stack complejo. 
+
+- Para solucionar esto estructuralmente en tu framework, la IA jamás debe intentar reconstruir de memoria la estructura de dependencias de un Macro-Stack complejo.
 - Debemos instruir una regla nueva en `NEW_SERVICE_TEMPLATE.md` (Regla 7): Para Macro-Servicios que dependan de sub-directorios con scripts o volúmenes iniciales (.sql, .conf, .json), el script bash DEBE clonarlos directamente del repositorio oficial en `$INSTALL_DIR` garantizando que estén presentes *antes* del `podman-compose up -d`.
 
 ---
@@ -53,6 +57,7 @@ El contenedor `supabase-realtime` se queda en estado `stopped` con el error:
 El motor Elixir (Phoenix) sobre el que corre Realtime exige una clave secreta de cifrado obligatoria para las cookies y sesiones internas del clúster. La IA original no incluyó esta variable ni en la generación de secretos ni en el mapa de entorno del `docker-compose.yml`.
 
 **Solución:**
+
 1. Modificar `supabase.sh` para que `manage_credentials` genere automáticamente una cadena aleatoria para `SECRET_KEY_BASE`.
 2. Mapear dicha variable en la sección `environment:` del servicio `realtime` en el `docker-compose.yml`.
 
@@ -65,10 +70,12 @@ Servicios como `supabase-storage` (y otros dependientes) lanzan errores masivos 
 `password authentication failed for user "postgres"` o similares.
 
 **Causa Raíz:**
+
 1. **La Trampa del Volumen Fantasma (`Ghost Volume`):** Cuando eliminaste la carpeta `/opt/supabase` para reinstalar, el archivo `config.env` que contenía el `POSTGRES_PASSWORD` original se destruyó. Al reinstalar, el script generó un *nuevo* password. Sin embargo, el volumen Docker persistente (`supabase_db_data`) NO se borró ni se vació. Postgres detectó datos existentes, usó la contraseña antigua horneada en el volumen, ignoró los scripts `.sql` de inyección que acabábamos de crear, y denegó todas las nuevas conexiones que usaban la nueva contraseña.
 2. **Rol "postgres" Hardcodeado:** En el `docker-compose.yml`, todos los servicios usaban al superusuario genérico `postgres`, ignorando los roles de ultra-precisión (`supabase_storage_admin`, `authenticator`, etc.) que el fabricante usa nativamente para segmentar permisos de seguridad.
 
 **Solución Implementada:**
+
 1. **Corrección de Roles en YAML:** Hemos editado el `docker-compose.yml` para que `auth` use `supabase_auth_admin`, `rest` use `authenticator`, `meta`/`realtime` usen `supabase_admin` y `storage` use `supabase_storage_admin`.
 2. **Procedimiento de Limpieza Obligatorio:** Para reinstalar un stack tan denso desde cero de verdad, NUNCA basta con hacer un `rm -rf /opt`. Se deben destruir los volúmenes, o bien usando el comando nativo de nuestro framework `bash supabase.sh --uninstall`, o ejecutando `podman volume rm supabase_supabase_db_data`.
 
@@ -84,6 +91,7 @@ El contenedor `supabase-auth` falla al arrancar con el error fatal:
 Las versiones recientes de GoTrue (como la `v2.186.0`) requieren explícitamente la definición del motor de base de datos (`postgres`) en una variable de entorno dedicada, incluso si la URL de conexión ya lo implica.
 
 **Solución:**
+
 1. Añadir `GOTRUE_DB_DRIVER="postgres"` al archivo `config.env`.
 2. Actualizar `supabase.sh` para exportar esta variable al archivo `.env` de runtime.
 3. Mapear `GOTRUE_DB_DRIVER: ${GOTRUE_DB_DRIVER}` en la sección `environment:` del servicio `auth` en `docker-compose.yml`.
@@ -94,15 +102,18 @@ Las versiones recientes de GoTrue (como la `v2.186.0`) requieren explícitamente
 
 **Problema:**
 Afloraron errores en cadena en múltiples servicios tras solventar los bloqueos iniciales.
+
 - **`supabase-realtime`** crashea instantáneamente con el error de Elixir: `** (RuntimeError) APP_NAME not available`.
 - **`supabase-rest`** y **`supabase-auth`** lanzan un error de base de datos idéntico: `FATAL: password authentication failed for user "authenticator"` o `"supabase_auth_admin"`.
 
 **Causa Raíz:**
+
 1. **APP_NAME missing:** Las versiones recientes de Realtime (v2.76.5) exigen `APP_NAME` como variable obligatoria en Elixir, además de requerir otras variables críticas desestimadas en el YAML original (`DB_ENC_KEY`, `DB_AFTER_CONNECT_QUERY`, `ERL_AFLAGS`, `RLIMIT_NOFILE`). Rehusar copiarlas desde el fabricante resulta fatal.
-2. **Missing JWT_SECRET en `db`:** El `docker-compose.yml` local no pasaba la variable `JWT_SECRET` ni `JWT_EXP` al contenedor de Postgres. Consecuentemente, cuando el archivo de migración `jwt.sql` se ejecuta durante la primera inicialización (`\set jwt_secret `echo "$JWT_SECRET"`), asigna secretos vacíos o caracteres nulos en el núcleo de la BD. 
+2. **Missing JWT_SECRET en `db`:** El `docker-compose.yml` local no pasaba la variable `JWT_SECRET` ni `JWT_EXP` al contenedor de Postgres. Consecuentemente, cuando el archivo de migración `jwt.sql` se ejecuta durante la primera inicialización (`\set jwt_secret \`echo "$JWT_SECRET"\`), asigna secretos vacíos o caracteres nulos en el núcleo de la BD.
 3. **Escapes Shell en Postgres Rootless:** En entornos restrictivos de Podman, la evaluación de comandos Shell dentro del `psql` (como `echo "$POSTGRES_PASSWORD"`) que usan los scripts `.sql` oficiales como método de hidratación de variables puede fallar silenciosamente, dejando cuentas como `authenticator` sin clave definida o con contraseñas mutiladas, provocando errores de autenticación.
 
 **Solución Estructural Implementada:**
+
 1. **Hydratación Activa (Sed):** Se ha modificado `supabase.sh` para que capture proactivamente los archivos `.sql` originales tras descargarlos, y con `sed`, aplique **Hardcoding** de las contraseñas exactas generadas, inyectando `${POSTGRES_PASSWORD}`, `${JWT_SECRET}` y `${JWT_EXPIRY}`. Esto destituye en absoluto cualquier dependencia de sub-shells defectuosos en `initdb.d` bajo podman.
 2. **Recreación Paramétrica Fiel:** Se inyectaron a `docker-compose.yml` todas las variables operativas oficiales de Realtime (`APP_NAME: realtime`, `SECRET_KEY_BASE`, etc.) y REST (`PGRST_APP_SETTINGS_JWT_SECRET`, etc.).
-3. **Sincronización `db`:** Ahora el contenedor Postgres percibe formalmente `JWT_SECRET` y `JWT_EXP` en su bloque enviroment para no divergir entre contenedores.
+3. **Sincronización `db`:** Ahora el contenedor Postgres percibe formalmente `JWT_SECRET` y `JWT_EXP` en su bloque environment para no divergir entre contenedores.

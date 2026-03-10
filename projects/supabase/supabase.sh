@@ -88,7 +88,8 @@ deploy_and_persist() {
 
     log "Descargando volúmenes SQL de inicialización oficiales de Supabase..."
     mkdir -p "$INSTALL_DIR/volumes/db"
-    local raw_base="https://raw.githubusercontent.com/supabase/supa ler.sql; do
+    local raw_base="https://raw.githubusercontent.com/supabase/supabase/master/docker/volumes/db"
+    for sql_file in realtime.sql webhooks.sql roles.sql jwt.sql _supabase.sql logs.sql pooler.sql; do
         if [ ! -f "$INSTALL_DIR/volumes/db/$sql_file" ]; then
             curl -sSL "$raw_base/$sql_file" -o "$INSTALL_DIR/volumes/db/$sql_file" || err "Fallo al descargar $sql_file del repositorio oficial."
         fi
