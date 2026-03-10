@@ -77,25 +77,25 @@ _format_version: "2.1"
 _transform: true
 services:
   - name: auth
-    url: http://auth:9999
+    url: http://supabase-auth:9999
     routes:
       - name: auth-route
         paths:
           - /auth/v1
   - name: rest
-    url: http://rest:3000
+    url: http://supabase-rest:3000
     routes:
       - name: rest-route
         paths:
           - /rest/v1
   - name: storage
-    url: http://storage:5000
+    url: http://supabase-storage:5000
     routes:
       - name: storage-route
         paths:
           - /storage/v1
   - name: realtime
-    url: http://realtime:4000
+    url: http://supabase-realtime:4000
     routes:
       - name: realtime-route
         paths:
@@ -137,7 +137,7 @@ deploy_and_persist() {
     log "Starting containers..."
     podman-compose up -d > /dev/null 2>&1
 
-    verify_containers_running "db" "studio" "kong" "auth" "rest" "realtime" "meta" "storage"
+    verify_containers_running "supabase-db" "supabase-studio" "supabase-kong" "supabase-auth" "supabase-rest" "supabase-realtime" "supabase-meta" "supabase-storage"
 
     rm -f "$INSTALL_DIR"/*.bak 2>/dev/null || true
 

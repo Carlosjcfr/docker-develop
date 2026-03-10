@@ -1,8 +1,8 @@
 version: '3.8'
 
 services:
-  db:
-    container_name: db
+  supabase-db:
+    container_name: supabase-db
     image: docker.io/supabase/postgres:${POSTGRES_VERSION}
     restart: unless-stopped
     labels:
@@ -26,37 +26,37 @@ services:
       - ./volumes/db/pooler.sql:/docker-entrypoint-initdb.d/migrations/99-pooler.sql:Z
       - supabase_db_data:/var/lib/postgresql/data:Z
 
-  studio:
-    container_name: studio
+  supabase-studio:
+    container_name: supabase-studio
     image: docker.io/supabase/studio:${STUDIO_VERSION}
     restart: unless-stopped
     ports:
       - "${STUDIO_PORT}:3000"
     environment:
-      STUDIO_PG_META_URL: http://meta:8080
+      STUDIO_PG_META_URL: http://supabase-meta:8080
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       SUPABASE_URL: http://${HOST_IP}:${KONG_PORT}
       SUPABASE_REST_URL: http://${HOST_IP}:${KONG_PORT}/rest/v1/
 
-  auth:
-    container_name: auth
+  supabase-auth:
+    container_name: supabase-auth
     image: docker.io/supabase/gotrue:${GOTRUE_VERSION}
     restart: unless-stopped
     environment:
       GOTRUE_API_HOST: 0.0.0.0
       GOTRUE_API_PORT: 9999
       GOTRUE_DB_DRIVER: ${GOTRUE_DB_DRIVER}
-      GOTRUE_DB_DATABASE_URL: postgres://supabase_auth_admin:${POSTGRES_PASSWORD}@db:5432/postgres
+      GOTRUE_DB_DATABASE_URL: postgres://supabase_auth_admin:${POSTGRES_PASSWORD}@supabase-db:5432/postgres
       GOTRUE_SITE_URL: http://${HOST_IP}:${STUDIO_PORT}
       GOTRUE_JWT_SECRET: ${JWT_SECRET}
       API_EXTERNAL_URL: http://${HOST_IP}:${KONG_PORT}
 
-  rest:
-    container_name: rest
+  supabase-rest:
+    container_name: supabase-rest
     image: docker.io/postgrest/postgrest:${POSTGREST_VERSION}
     restart: unless-stopped
     environment:
-      PGRST_DB_URI: postgres://authenticator:${POSTGRES_PASSWORD}@db:5432/postgres
+      PGRST_DB_URI: postgres://authenticator:${POSTGRES_PASSWORD}@supabase-db:5432/postgres
       PGRST_DB_SCHEMAS: public
       PGRST_DB_ANON_ROLE: anon
       PGRST_JWT_SECRET: ${JWT_SECRET}
@@ -64,13 +64,13 @@ services:
       PGRST_APP_SETTINGS_JWT_SECRET: ${JWT_SECRET}
       PGRST_APP_SETTINGS_JWT_EXP: ${JWT_EXPIRY}
 
-  realtime:
-    container_name: realtime
+  supabase-realtime:
+    container_name: supabase-realtime
     image: docker.io/supabase/realtime:${REALTIME_VERSION}
     restart: unless-stopped
     environment:
       PORT: 4000
-      DB_HOST: db
+      DB_HOST: supabase-db
       DB_PORT: 5432
       DB_USER: supabase_admin
       DB_PASSWORD: ${POSTGRES_PASSWORD}
@@ -87,19 +87,19 @@ services:
       RUN_JANITOR: "true"
       DISABLE_HEALTHCHECK_LOGGING: "true"
 
-  meta:
-    container_name: meta
+  supabase-meta:
+    container_name: supabase-meta
     image: docker.io/supabase/postgres-meta:${META_VERSION}
     restart: unless-stopped
     environment:
-      PG_META_DB_HOST: db
+      PG_META_DB_HOST: supabase-db
       PG_META_DB_PORT: 5432
       PG_META_DB_NAME: postgres
       PG_META_DB_USER: supabase_admin
       PG_META_DB_PASSWORD: ${POSTGRES_PASSWORD}
 
-  storage:
-    container_name: storage
+  supabase-storage:
+    container_name: supabase-storage
     image: docker.io/supabase/storage-api:${STORAGE_VERSION}
     restart: unless-stopped
     environment:
@@ -107,14 +107,14 @@ services:
       FILE_STORAGE_BACKEND_PATH: /var/lib/storage
       TENANT_ID: stub
       REGION: stub
-      DATABASE_URL: postgres://supabase_storage_admin:${POSTGRES_PASSWORD}@db:5432/postgres
-      POSTGREST_URL: http://rest:3000
+      DATABASE_URL: postgres://supabase_storage_admin:${POSTGRES_PASSWORD}@supabase-db:5432/postgres
+      POSTGREST_URL: http://supabase-rest:3000
       PGRST_JWT_SECRET: ${JWT_SECRET}
     volumes:
       - supabase_storage_data:/var/lib/storage:Z
 
-  kong:
-    container_name: kong
+  supabase-kong:
+    container_name: supabase-kong
     image: docker.io/library/kong:${KONG_VERSION}
     restart: unless-stopped
     ports:
