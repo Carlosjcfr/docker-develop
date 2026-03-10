@@ -10,6 +10,7 @@ x-logging: &default-logging
 services:
   db:
     image: postgres:${POSTGRES_VERSION}
+    container_name: db
     shm_size: 1g
     restart: unless-stopped
     volumes:
@@ -28,6 +29,7 @@ services:
 
   windmill_server:
     image: ghcr.io/windmill-labs/windmill:${WINDMILL_VERSION}
+    container_name: windmill_server
     pull_policy: always
     deploy:
       replicas: 1
@@ -52,6 +54,7 @@ services:
 
   windmill_worker:
     image: ghcr.io/windmill-labs/windmill:${WINDMILL_VERSION}
+    container_name: windmill_worker
     pull_policy: always
     deploy:
       replicas: 1
@@ -75,6 +78,7 @@ services:
 
   windmill_worker_native:
     image: ghcr.io/windmill-labs/windmill:${WINDMILL_VERSION}
+    container_name: windmill_worker_native
     pull_policy: always
     deploy:
       replicas: 1
@@ -99,6 +103,7 @@ services:
 
   windmill_extra:
     image: ghcr.io/windmill-labs/windmill-extra:${WINDMILL_EXTRA_VERSION:-latest}
+    container_name: windmill_extra
     pull_policy: always
     restart: unless-stopped
     expose:

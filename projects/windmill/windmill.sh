@@ -54,8 +54,7 @@ do_uninstall() {
     UNINSTALL_SVC_NAME="Windmill"
     # shellcheck disable=SC2034
     UNINSTALL_SYSTEMD="container-windmill.service" 
-    # shellcheck disable=SC2034
-    UNINSTALL_CONTAINERS=("windmill_server")
+    UNINSTALL_CONTAINERS=("windmill_server" "db" "windmill_worker" "windmill_worker_native" "windmill_extra")
     
     # NOTE: UNINSTALL_IMAGES array is only for static fallback.
     # The engine now automatically discovers images from docker-compose.yml.

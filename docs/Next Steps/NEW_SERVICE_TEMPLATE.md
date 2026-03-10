@@ -22,6 +22,7 @@ Actúa como experto DevOps. Crea los 4 ficheros para integrar este servicio en m
    - **Labels en Compose:** El contenedor principal debe incluir labels para icono (`dev.arcane.icon`), categoría (`dev.arcane.category`), nombre de proyecto (`com.docker.compose.project`), y directorio de trabajo simulado (`com.docker.compose.project.working_dir=/app/data/projects/<slug>`).
    - **Registro del Proyecto:** El script `.sh` debe llamar a `register_arcane_project "<slug>" "$INSTALL_DIR"` tras el despliegue.
    - **Variables Estéticas:** Los valores de icono y categoría deben ser parametrizables desde `config.env`.
+10. **Nombres de Contenedor Explícitos (Health Checks):** Define siempre `container_name: <nombre>` debajo de cada bloque de servicio (`image: x`) en tu `docker-compose.yml`. Si no lo haces, `podman-compose` generará nombres aleatorios y las comprobaciones de estado `verify_containers_running` fracasarán en el despliegue con estatus "missing".
 
 **ESQUELETO OBLIGATORIO PARA `<slug>.sh`:**
 No inventes funciones. Limítate a rellenar este exacto molde (usando variables base como `$HOST_IP` y `$PUID`):
