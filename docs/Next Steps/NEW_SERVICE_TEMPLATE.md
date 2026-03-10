@@ -20,6 +20,10 @@ Actúa como experto DevOps. Crea los 4 ficheros para integrar este servicio en m
 6. **Macro-Services (Resolución Dinámica):** Para despliegues complejos compuestos por múltiples contenedores acoplados (ej: Supabase, Nextcloud), DEBES realizar una búsqueda web previa para localizar el `.env` o el `docker-compose.yml` oficial maestro de los fabricantes. Tras la investigación, **debes extraer las tags de las versiones probadas y declararlas explícitamente como variables en el `config.env`** generador, usándolas en tu `.yml` como `$MI_VERSION`. Así mantienes la coherencia de variables nativa del proyecto.
 7. **Sub-Volumes (Integridad Arquitectónica):** NO inventes ni resumas "docker-compose.yml" de Macro-Stacks (ej: Supabase) ignorando sus volúmenes, carpetas y scripts de inicialización de Base de Datos. Si identificas que el ecosistema oficial reposa sobre directorios de volumen nativos (como carpetas de scripts SQL `init-db.d/`), **DEBES generar comandos en `do_install` que descarguen esos directorios (ej. con un clone sparse de git o wget iterativo) al `$INSTALL_DIR`** de forma previa a la instanciación para evitar que fallen los contenedores dependientes por permisos de esquema o tablas inexistentes.
 8. **Variables Críticas (Previsión de Crasheos):** Antes de plantear el `docker-compose.yml`, debes examinar exhaustivamente el `.env.example` o la documentación oficial del fabricante para discriminar qué parámetros son esenciales. **No omitas variables de entorno orgánicas obligatorias** para un arranque funcional (ej. URLs de callback externas, tokens internos pre-generados o contraseñas core). Sin embargo, **NO incluyas a ciegas absolutamente todos los parámetros** (omite variables experimentales, opcionales, o analíticas secundarias que no sean críticas). Recrea solo el `environment:` estrictamente necesario y centralízalo a través de nuestro `config.env`.
+9. **Integración con Arcane (Visibility):** Todo nuevo servicio debe integrarse en el panel de control **Arcane**. Esto implica tres requisitos obligatorios:
+   - **Labels en Compose:** El contenedor principal debe incluir labels para icono (`dev.arcane.icon`), categoría (`dev.arcane.category`) y nombre de proyecto (`com.docker.compose.project`).
+   - **Registro por Symlink:** El script `.sh` debe llamar a `register_arcane_project "<slug>" "$INSTALL_DIR"` tras el despliegue.
+   - **Variables Estéticas:** Los valores de icono y categoría deben ser parametrizables desde `config.env`.
 
 **ESQUELETO OBLIGATORIO PARA `<slug>.sh`:**
 No inventes funciones. Limítate a rellenar este exacto molde (usando variables base como `$HOST_IP` y `$PUID`):
@@ -36,7 +40,9 @@ source <(curl -fsSL "$REPO_BASE/lib/lib.sh")
 load_configuration() {
     source "$TMP_DIR/config.env"
     INSTALL_DIR="${INSTALL_DIR:-/opt/<slug>}"
-    # Inicializa tus variables personalizadas aquí (ej: MIVAR="${MIVAR:-default}")
+    # Inicializa tus variables personalizadas aquí
+    ARCANE_ICON="${ARCANE_ICON:-si:<icon_slug>}"
+    ARCANE_CATEGORY="${ARCANE_CATEGORY:-<Category>}"
 }
 
 generate_runtime_env() {
@@ -46,7 +52,9 @@ HOST_IP="$HOST_IP"
 PUID="$PUID"
 PGID="$PGID"
 PODMAN_SOCK="$PODMAN_SOCK"
-# Añade el mapeo final de tus variables para el compose aquí
+# Arcane metadata
+ARCANE_ICON="$ARCANE_ICON"
+ARCANE_CATEGORY="$ARCANE_CATEGORY"
 EOF
     umask "$OLD_UMASK"
 }
@@ -119,8 +127,6 @@ ExecStart=$(command -v podman-compose) up -d
 ExecStop=$(command -v podman-compose) down
 TimeoutStartSec=120
 TimeoutStopSec=30
-Restart=on-failure
-RestartSec=15
 
 [Install]
 WantedBy=default.target
@@ -152,6 +158,7 @@ do_install() {
     
     generate_runtime_env
     deploy_and_persist
+    register_arcane_project "<slug>" "$INSTALL_DIR"
     print_success
 }
 
@@ -173,6 +180,7 @@ do_update() {
     mv -f "$TMP_DIR/docker-compose.yml" "$INSTALL_DIR/docker-compose.yml"
     
     deploy_and_persist
+    register_arcane_project "<slug>" "$INSTALL_DIR"
     print_success
 }
 

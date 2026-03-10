@@ -154,8 +154,6 @@ ExecStart=$(command -v podman-compose) up -d
 ExecStop=$(command -v podman-compose) down
 TimeoutStartSec=120
 TimeoutStopSec=30
-Restart=on-failure
-RestartSec=15
 
 [Install]
 WantedBy=default.target
@@ -248,7 +246,7 @@ do_uninstall() {
 
 check_existing_installation() {
     local dir="${1:-/opt/supabase}"
-    if [ -f "$dir/.env" ] && podman container exists db 2>/dev/null; then
+    if [ -f "$dir/.env" ] && (podman container exists db 2>/dev/null || podman container exists supabase-db 2>/dev/null); then
         return 0
     fi
     return 1

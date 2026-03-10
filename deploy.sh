@@ -35,7 +35,7 @@ HOST_IP=$(hostname -I | awk '{print $1}')
 REGISTRY=(
     "Caddy Proxy + Manager|projects/caddy-proxy-manager/caddy.sh|/opt/caddy|caddy|Reverse proxy with TLS + web management UI|Proxy: {IP}:80 / {IP}:443, Manager: {IP}:8080"
     "Arcane|projects/arcane/arcane.sh|/opt/arcane|arcane|Container management UI|UI: {IP}:3552"
-    "Supabase|projects/supabase/supabase.sh|/opt/supabase|supabase-studio|Open source Firebase alternative|Studio: {IP}:3000, API: {IP}:8000, DB: {IP}:5432"
+    "Supabase|projects/supabase/supabase.sh|/opt/supabase|studio|Open source Firebase alternative|Studio: {IP}:3000, API: {IP}:8000, DB: {IP}:5432"
 )
 
 # =============================================================================
@@ -59,7 +59,18 @@ registry_field() {
 is_installed() {
     local dir="$1"
     local container="$2"
-    [ -f "$dir/.env" ] && podman container exists "$container" 2>/dev/null
+    
+    # Check if .env exists AND if either the new short name or the old prefixed name exists
+    if [ -f "$dir/.env" ]; then
+        if podman container exists "$container" 2>/dev/null; then
+            return 0
+        fi
+        # Specific check for legacy Supabase names
+        if [[ "$container" == "studio" ]] && podman container exists "supabase-studio" 2>/dev/null; then
+            return 0
+        fi
+    fi
+    return 1
 }
 
 # =============================================================================
