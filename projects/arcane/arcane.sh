@@ -271,12 +271,19 @@ do_update() {
 
 do_uninstall() {
     INSTALL_DIR="${INSTALL_DIR:-/opt/arcane}"
+    # shellcheck disable=SC2034
     UNINSTALL_SVC_NAME="ARCANE"
+    # shellcheck disable=SC2034
     UNINSTALL_SYSTEMD="container-arcane.service"
+    # shellcheck disable=SC2034
     UNINSTALL_CONTAINERS=("arcane")
+    # shellcheck disable=SC2034
     UNINSTALL_IMAGES=("ghcr.io/getarcaneapp/arcane:${PACKAGE_VERSION:-latest}")
+    # shellcheck disable=SC2034
     UNINSTALL_VOLUMES=()
+    # shellcheck disable=SC2034
     UNINSTALL_DIRS=("${INSTALL_DIR}/data" "${INSTALL_DIR}/projects")
+    # shellcheck disable=SC2034
     UNINSTALL_DATA_WARN="WARNING: Internal database and all arcane projects will be lost!"
 
     uninstall_generic_service

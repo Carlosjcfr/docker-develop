@@ -35,9 +35,11 @@ set -euo pipefail
 GIT_BRANCH="${GIT_BRANCH:-main}"
 REPO_BASE="${REPO_BASE:-https://raw.githubusercontent.com/Carlosjcfr/docker-develop/$GIT_BRANCH}"
 REPO_RAW="$REPO_BASE/projects/<slug>"
+# shellcheck source=../../lib/lib.sh
 source <(curl -fsSL "$REPO_BASE/lib/lib.sh")
 
 load_configuration() {
+    # shellcheck source=/dev/null
     source "$TMP_DIR/config.env"
     INSTALL_DIR="${INSTALL_DIR:-/opt/<slug>}"
     # Inicializa tus variables personalizadas aquí
@@ -61,15 +63,21 @@ EOF
 
 do_uninstall() {
     INSTALL_DIR="${INSTALL_DIR:-/opt/<slug>}"
+    # shellcheck disable=SC2034
     UNINSTALL_SVC_NAME="<NAME>"
+    # shellcheck disable=SC2034
     UNINSTALL_SYSTEMD="container-<slug>.service" 
+    # shellcheck disable=SC2034
     UNINSTALL_CONTAINERS=("<main_container>")
     
     # NOTE: UNINSTALL_IMAGES array is only for static fallback.
     # The engine now automatically discovers images from docker-compose.yml.
+    # shellcheck disable=SC2034
     UNINSTALL_IMAGES=("<fqdn_imagen_exacta>")
     
+    # shellcheck disable=SC2034
     UNINSTALL_VOLUMES=("<array_volumenes_persistentes>")
+    # shellcheck disable=SC2034
     UNINSTALL_DIRS=()
     uninstall_generic_service
 }

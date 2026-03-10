@@ -4,9 +4,11 @@ set -euo pipefail
 GIT_BRANCH="${GIT_BRANCH:-main}"
 REPO_BASE="${REPO_BASE:-https://raw.githubusercontent.com/Carlosjcfr/docker-develop/$GIT_BRANCH}"
 REPO_RAW="$REPO_BASE/projects/supabase"
+# shellcheck source=../../lib/lib.sh
 source <(curl -fsSL "$REPO_BASE/lib/lib.sh")
 
 load_configuration() {
+    # shellcheck source=/dev/null
     source "$TMP_DIR/config.env"
     INSTALL_DIR="${INSTALL_DIR:-/opt/supabase}"
     
@@ -227,13 +229,20 @@ do_update() {
 
 do_uninstall() {
     INSTALL_DIR="${INSTALL_DIR:-/opt/supabase}"
+    
+    # shellcheck disable=SC2034
     UNINSTALL_SVC_NAME="Supabase"
+    # shellcheck disable=SC2034
     UNINSTALL_SYSTEMD="container-supabase.service" 
     
     # Optional: Manual list for fallback if .yml is missing or for specific resources not in compose
+    # shellcheck disable=SC2034
     UNINSTALL_CONTAINERS=("db" "studio" "kong" "auth" "rest" "realtime" "meta" "storage")
+    # shellcheck disable=SC2034
     UNINSTALL_VOLUMES=("supabase_supabase_db_data" "supabase_supabase_storage_data" "supabase_db_data" "supabase_storage_data")
+    # shellcheck disable=SC2034
     UNINSTALL_DIRS=()
+    # shellcheck disable=SC2034
     UNINSTALL_DATA_WARN="WARNING: All your Supabase database and storage data will be permanently deleted."
 
     uninstall_generic_service

@@ -280,12 +280,19 @@ do_update() {
 
 do_uninstall() {
     INSTALL_DIR="${INSTALL_DIR:-/opt/caddy}"
+    # shellcheck disable=SC2034
     UNINSTALL_SVC_NAME="CADDY"
+    # shellcheck disable=SC2034
     UNINSTALL_SYSTEMD="caddy-compose.service"
+    # shellcheck disable=SC2034
     UNINSTALL_CONTAINERS=("caddy" "caddymanager-backend" "caddymanager-frontend")
+    # shellcheck disable=SC2034
     UNINSTALL_IMAGES=("docker.io/lucaslorentz/caddy-docker-proxy:${CADDY_VERSION:-2.11-alpine}" "docker.io/caddymanager/caddymanager-backend:${PACKAGE_VERSION:-0.0.2}" "docker.io/caddymanager/caddymanager-frontend:${PACKAGE_VERSION:-0.0.2}")
+    # shellcheck disable=SC2034
     UNINSTALL_VOLUMES=("caddy_data" "caddy_config" "caddymanager_sqlite")
+    # shellcheck disable=SC2034
     UNINSTALL_DIRS=()
+    # shellcheck disable=SC2034
     UNINSTALL_DATA_WARN="WARNING: caddy_data contains TLS certificates — CRITICAL to preserve!"
 
     uninstall_generic_service
