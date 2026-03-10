@@ -117,3 +117,17 @@ Afloraron errores en cadena en múltiples servicios tras solventar los bloqueos 
 1. **Hydratación Activa (Sed):** Se ha modificado `supabase.sh` para que capture proactivamente los archivos `.sql` originales tras descargarlos, y con `sed`, aplique **Hardcoding** de las contraseñas exactas generadas, inyectando `${POSTGRES_PASSWORD}`, `${JWT_SECRET}` y `${JWT_EXPIRY}`. Esto destituye en absoluto cualquier dependencia de sub-shells defectuosos en `initdb.d` bajo podman.
 2. **Recreación Paramétrica Fiel:** Se inyectaron a `docker-compose.yml` todas las variables operativas oficiales de Realtime (`APP_NAME: realtime`, `SECRET_KEY_BASE`, etc.) y REST (`PGRST_APP_SETTINGS_JWT_SECRET`, etc.).
 3. **Sincronización `db`:** Ahora el contenedor Postgres percibe formalmente `JWT_SECRET` y `JWT_EXP` en su bloque environment para no divergir entre contenedores.
+
+---
+
+## Error 11: Storage "Failed to retrieve buckets" (Kong Misconfiguration)
+
+**Problema:**
+Al abrir la sección de Storage en el Dashboard de Supabase (Studio), aparece el error fatal: *"Failed to retrieve buckets - Error: API error happened while trying to communicate with the server"*.
+
+**Causa Raíz:**
+El archivo de configuración de Kong (`kong.yml`) generado dinámicamente por el script instalador solo incluía rutas para `auth` y `rest`. Al no existir una ruta para el endpoint `/storage/v1/*`, cualquier petición desde el Dashboard al API de Storage era rechazada por el gateway, provocando el fallo de comunicación en la UI.
+
+**Solución Implementada:**
+1. Se ha actualizado la generación de `kong.yml` en `supabase.sh` para incluir los servicios y rutas de `storage` (puerto 5000) y `realtime` (puerto 4000).
+2. Se ha eliminado la guarda de "solo crear si no existe" para `kong.yml`, asegurando que cualquier actualización del script que añada nuevos servicios se sincronice automáticamente con el gateway en el siguiente despliegue.

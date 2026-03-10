@@ -60,9 +60,8 @@ JWT_EXPIRY="$JWT_EXPIRY"
 EOF
     umask "$OLD_UMASK"
 
-    # Generate mandatory Kong manifest for Supabase statically
-    if [ ! -f "$INSTALL_DIR/kong.yml" ]; then
-        cat <<EOF > "$INSTALL_DIR/kong.yml"
+    # Generate mandatory Kong manifest for Supabase statically (always overwrite to keep in sync)
+    cat <<EOF > "$INSTALL_DIR/kong.yml"
 _format_version: "2.1"
 _transform: true
 services:
@@ -78,8 +77,19 @@ services:
       - name: rest-route
         paths:
           - /rest/v1
+  - name: storage
+    url: http://storage:5000
+    routes:
+      - name: storage-route
+        paths:
+          - /storage/v1
+  - name: realtime
+    url: http://realtime:4000
+    routes:
+      - name: realtime-route
+        paths:
+          - /realtime/v1
 EOF
-    fi
 }
 
 deploy_and_persist() {
