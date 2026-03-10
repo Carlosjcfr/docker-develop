@@ -9,6 +9,9 @@ This document tracks the implementation status of all proposed features and arch
 | Feature | Source Document | Description |
 | :--- | :--- | :--- |
 | **Permission Denied in `rm -rf`** | `04_uninstall.sh` | High |
+| **Atomic Uninstall Engine** | `ROADMAP.md` | Dynamic resource discovery (Compose) + Sudo-fix for permissions. |
+| **Arcane Self-Management Guard** | `lib/src/05_arcane.sh` | Prevents Arcane from managing (and stopping) itself. |
+| **Source Module Restoration** | `lib/build.sh` | `05_arcane.sh` correctly integrated into the library entry point. |
 | **Unified Service Manager** | `ARCHITECTURE.md` | Single entry point via `deploy.sh`. |
 | **Compiled Shared Library** | `ARCHITECTURE.md` | Centralized `lib/lib.sh` logic. |
 | **Security Hardening** | `ARCHITECTURE.md` | Non-root, umask 177, auto-secrets. |
@@ -17,6 +20,7 @@ This document tracks the implementation status of all proposed features and arch
 | **Git Hook Automation** | `ARCHITECTURE.md` | Automatic compilation of `lib.sh`. |
 | **Syntax Validation** | `TEMPLATE_OPTIMIZATION_PLAN.md` | `podman-compose config` check before deploy. |
 | **Arcane Sync Engine** | `ARCANE_ORGANIZATION_ANALYSIS.md` | Copy + Label patching (Replaces symlinks). |
+| **Dynamic Image Uninstall** | `TEMPLATE_OPTIMIZATION_PLAN.md` | Auto-detection in `lib.sh` via labels and compose parsing. |
 
 ---
 
@@ -27,7 +31,7 @@ This document tracks the implementation status of all proposed features and arch
 
 | Feature | Source Document | Current State |
 | :--- | :--- | :--- |
-| **Atomic Uninstall Engine** (v2) | `ROADMAP.md` | Sudo-reinforced directory removal implemented. Testing fix. |
+| | | |
 
 ---
 
@@ -51,6 +55,8 @@ This document tracks the implementation status of all proposed features and arch
 
 | Feature | Source Document | Category |
 | :--- | :--- | :--- |
+| **Library API Abstraction** | `LIBRARY_DOCUMENTATION_ANALYSIS.md` | Documentation / Clean Code |
+| **Arcane Phase 2 (Webhook Agent)** | `ARCANE_EVOLUTION_ANALYSIS.md` | Management / UX |
 | **Metadata Labels (Icons/Groups)** | `ARCANE_ORGANIZATION_ANALYSIS.md` | UI / Aesthetics |
 | **Simplified Container Naming** | `ARCANE_ORGANIZATION_ANALYSIS.md` | Architecture / UX |
 | **Dynamic Tag Resolution** | `DYNAMIC_TAG_RESOLUTION_PLAN.md` | Reliability |

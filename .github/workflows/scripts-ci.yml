@@ -43,25 +43,28 @@ jobs:
     name: Detect Changes
     runs-on: ubuntu-latest
     outputs:
-      lib: ${{ steps.filter.outputs.lib }}
+      buildable: ${{ steps.filter.outputs.buildable }}
     steps:
       - uses: actions/checkout@v4
       - uses: dorny/paths-filter@v3
         id: filter
         with:
           filters: |
-            lib:
+            buildable:
               - 'lib/src/**'
               - 'lib/build.sh'
+              - 'projects/**/.registry'
+              - 'scripts/build_registry.sh'
 
   # ============================================================================
-  # JOB 0 — Auto Build lib.sh
-  # Compiles lib/src/*.sh into lib/lib.sh and auto-commits if changes exist.
+  # JOB 0 — Auto Build lib.sh & deploy.sh
+  # Compiles lib/src/*.sh into lib/lib.sh, builds the deploy.sh registry,
+  # and auto-commits if changes exist.
   # ============================================================================
   auto-build:
-    name: Auto-compile lib.sh
+    name: Auto-compile buildables
     needs: changes
-    if: needs.changes.outputs.lib == 'true'
+    if: needs.changes.outputs.buildable == 'true'
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -74,11 +77,14 @@ jobs:
       - name: Build lib.sh from sources
         run: bash lib/build.sh
 
+      - name: Build deploy.sh registry
+        run: bash scripts/build_registry.sh
+
       - name: Commit and push changes
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
-          commit_message: "chore(lib): auto-compile lib.sh from sources"
-          file_pattern: "lib/lib.sh"
+          commit_message: "chore(build): auto-compile lib.sh and update deploy.sh registry"
+          file_pattern: "lib/lib.sh deploy.sh"
 
   # ============================================================================
   # JOB 1 — ShellCheck (static analysis)

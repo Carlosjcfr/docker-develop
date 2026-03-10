@@ -33,9 +33,10 @@ REPO_BASE="${REPO_BASE:-https://raw.githubusercontent.com/Carlosjcfr/docker-deve
 HOST_IP=$(hostname -I | awk '{print $1}')
 
 REGISTRY=(
-    "Caddy Proxy + Manager|projects/caddy-proxy-manager/caddy.sh|/opt/caddy|caddy|Reverse proxy with TLS + web management UI|Proxy: {IP}:80 / {IP}:443, Manager: {IP}:8080"
     "Arcane|projects/arcane/arcane.sh|/opt/arcane|arcane|Container management UI|UI: {IP}:3552"
+    "Caddy Proxy + Manager|projects/caddy-proxy-manager/caddy.sh|/opt/caddy|caddy|Reverse proxy with TLS + web management UI|Proxy: {IP}:80 / {IP}:443, Manager: {IP}:8080"
     "Supabase|projects/supabase/supabase.sh|/opt/supabase|studio|Open source Firebase alternative|Studio: {IP}:3000, API: {IP}:8000, DB: {IP}:5432"
+    "Windmill|projects/windmill/windmill.sh|/opt/windmill|windmill_server|Plataforma analítica y de workflows para desarrolladores|Servicio: {IP}:8000"
 )
 
 # =============================================================================
