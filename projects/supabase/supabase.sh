@@ -105,10 +105,7 @@ deploy_and_persist() {
         fi
     done
 
-    log "Patching SQL scripts (Preventing psql expansion failures in rootless)..."
-    sed -i "s|\\\\set pgpass \`echo \"\$POSTGRES_PASSWORD\"\`|\\\\set pgpass ${POSTGRES_PASSWORD}|g" "$INSTALL_DIR/volumes/db/roles.sql"
-    sed -i "s|\\\\set jwt_secret \`echo \"\$JWT_SECRET\"\`|\\\\set jwt_secret ${JWT_SECRET}|g" "$INSTALL_DIR/volumes/db/jwt.sql"
-    sed -i "s|\\\\set jwt_exp \`echo \"\$JWT_EXP\"\`|\\\\set jwt_exp ${JWT_EXPIRY}|g" "$INSTALL_DIR/volumes/db/jwt.sql"
+    # The SQL files natively evaluate \`echo "$ENV_VAR"\` using variables passed via docker-compose.yml
 
     podman-compose config > /dev/null 2>&1 || { err "Invalid docker-compose syntax. Aborting installation."; exit 1; }
 
