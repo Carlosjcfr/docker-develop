@@ -21,6 +21,7 @@ MODULES=(
     "src/02_install.sh"
     "src/03_health.sh"
     "src/04_uninstall.sh"
+    "src/05_arcane.sh"
 )
 
 # Append each module to the output file

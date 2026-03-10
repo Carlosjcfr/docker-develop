@@ -65,13 +65,9 @@ do_uninstall() {
     UNINSTALL_SYSTEMD="container-<slug>.service" 
     UNINSTALL_CONTAINERS=("<main_container>")
     
-    if [ -f "$INSTALL_DIR/docker-compose.yml" ]; then
-        cd "$INSTALL_DIR"
-        UNINSTALL_IMAGES=($(podman-compose config -q | grep 'image:' | awk '{print $2}' || true))
-        cd - >/dev/null
-    else
-        UNINSTALL_IMAGES=("<fqdn_imagen_exacta>")
-    fi
+    # NOTE: UNINSTALL_IMAGES array is only for static fallback.
+    # The engine now automatically discovers images from docker-compose.yml.
+    UNINSTALL_IMAGES=("<fqdn_imagen_exacta>")
     
     UNINSTALL_VOLUMES=("<array_volumenes_persistentes>")
     UNINSTALL_DIRS=()
