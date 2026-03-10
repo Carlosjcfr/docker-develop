@@ -55,6 +55,7 @@ jobs:
           # -P lib/ tells ShellCheck where to find sourced files
           # -x allows following external sources (e.g. source <(curl ...))
           for script in projects/caddy-proxy-manager/caddy.sh \
+                        projects/supabase/supabase.sh \
                         projects/arcane/arcane.sh; do
             echo "→ $script"
             shellcheck -x -P lib/ "$script"
@@ -198,7 +199,7 @@ jobs:
           pass "Combined flags parsed correctly"
 
           echo "Testing unknown flag returns error..."
-          if parse_args --unknown-flag 2>/dev/null; then
+          if (parse_args --unknown-flag 2>/dev/null); then
             fail "Unknown flag did not return error"
           fi
           pass "Unknown flag exits with error"

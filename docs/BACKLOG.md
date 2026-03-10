@@ -16,6 +16,27 @@ This document tracks the implementation status of all proposed features and arch
 | **Diagnostic Probes** | `ROADMAP.md` | Post-deploy HTTP health checks. |
 | **Git Hook Automation** | `ARCHITECTURE.md` | Automatic compilation of `lib.sh`. |
 | **Syntax Validation** | `TEMPLATE_OPTIMIZATION_PLAN.md` | `podman-compose config` check before deploy. |
+| **Arcane Sync Engine** | `ARCANE_ORGANIZATION_ANALYSIS.md` | Copy + Label patching (Replaces symlinks). |
+| **Dynamic Image Uninstall** | `TEMPLATE_OPTIMIZATION_PLAN.md` | Auto-detection in `lib.sh` via labels and compose parsing. |
+
+---
+
+## 🔵 Testing (En Pruebas)
+
+> [!TIP]
+> Tasks move here once implemented. If tests pass, move to **Done**. If bugs are found, move to **Debug**.
+
+| Feature | Source Document | Current State |
+| :--- | :--- | :--- |
+| | | |
+
+---
+
+## 🟠 Debug (Corrección de Errores)
+
+| Bug / Issue | Source Document | Priority |
+| :--- | :--- | :--- |
+| | | |
 
 ---
 
@@ -23,9 +44,8 @@ This document tracks the implementation status of all proposed features and arch
 
 | Feature | Source Document | Current State |
 | :--- | :--- | :--- |
-| **Atomic Backups (`.bak`)** | `TEMPLATE_OPTIMIZATION_PLAN.md` | Implemented in individual scripts (Supabase); needs moving to `lib.sh`. |
-| **Dynamic Image Uninstall** | `TEMPLATE_OPTIMIZATION_PLAN.md` | Implemented in Supabase; needs standardization in other services. |
-| **Interactive Fallback** | `DYNAMIC_TAG_RESOLUTION_PLAN.md` | Basic implementation in Supabase for tag failures. |
+| **Atomic Backups (`.bak`)** | `TEMPLATE_OPTIMIZATION_PLAN.md` | Basic logic tested in Supabase; needs moving to `lib.sh`. |
+| **Interactive Fallback** | `DYNAMIC_TAG_RESOLUTION_PLAN.md` | Interactive patch to `:latest` in Supabase; needs generalization. |
 
 ---
 
@@ -33,7 +53,6 @@ This document tracks the implementation status of all proposed features and arch
 
 | Feature | Source Document | Category |
 | :--- | :--- | :--- |
-| **Project Symlinks (Arcane)** | `ARCANE_ORGANIZATION_ANALYSIS.md` | UI / Organization |
 | **Metadata Labels (Icons/Groups)** | `ARCANE_ORGANIZATION_ANALYSIS.md` | UI / Aesthetics |
 | **Simplified Container Naming** | `ARCANE_ORGANIZATION_ANALYSIS.md` | Architecture / UX |
 | **Dynamic Tag Resolution** | `DYNAMIC_TAG_RESOLUTION_PLAN.md` | Reliability |

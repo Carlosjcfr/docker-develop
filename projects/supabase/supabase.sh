@@ -229,17 +229,13 @@ do_uninstall() {
     INSTALL_DIR="${INSTALL_DIR:-/opt/supabase}"
     UNINSTALL_SVC_NAME="Supabase"
     UNINSTALL_SYSTEMD="container-supabase.service" 
-    UNINSTALL_CONTAINERS=("db" "studio" "kong" "auth" "rest" "realtime" "meta" "storage")
     
-    if [ -f "$INSTALL_DIR/docker-compose.yml" ]; then
-        cd "$INSTALL_DIR"
-        UNINSTALL_IMAGES=($(podman-compose config | grep 'image:' | awk '{print $2}' || true))
-        cd - >/dev/null
-    else
-        UNINSTALL_IMAGES=("docker.io/supabase/postgres:\${POSTGRES_VERSION}" "docker.io/supabase/studio:\${STUDIO_VERSION}" "docker.io/library/kong:\${KONG_VERSION}" "docker.io/supabase/gotrue:\${GOTRUE_VERSION}" "docker.io/postgrest/postgrest:\${POSTGREST_VERSION}" "docker.io/supabase/realtime:\${REALTIME_VERSION}" "docker.io/supabase/postgres-meta:\${META_VERSION}" "docker.io/supabase/storage-api:\${STORAGE_VERSION}")
-    fi
+    # Optional: Manual list for fallback if .yml is missing or for specific resources not in compose
+    UNINSTALL_CONTAINERS=("db" "studio" "kong" "auth" "rest" "realtime" "meta" "storage")
     UNINSTALL_VOLUMES=("supabase_supabase_db_data" "supabase_supabase_storage_data" "supabase_db_data" "supabase_storage_data")
     UNINSTALL_DIRS=()
+    UNINSTALL_DATA_WARN="WARNING: All your Supabase database and storage data will be permanently deleted."
+
     uninstall_generic_service
 }
 

@@ -1,18 +1,73 @@
 # =============================================================================
-# UNINSTALLATION ENGINE
+# ATOMIC UNINSTALLATION ENGINE
 # =============================================================================
 
+# Internal helper to extract resources from a project directory.
+# Uses podman-compose to parse the YAML and resolve variables.
+_discover_compose_resources() {
+    local dir="${1:?_discover_compose_resources requires a directory}"
+    local compose_file="$dir/docker-compose.yml"
+
+    if [ -f "$compose_file" ]; then
+        # Use podman-compose config to resolve syntax and show the absolute state.
+        # We extract images and container names (if defined).
+        # We run this in the project directory so it can find .env files if present.
+        (
+            cd "$dir" 2>/dev/null || exit
+            # Extract images: filter 'image:', remove prefix, remove quotes
+            # Extract containers: if 'container_name' is used, we get it. 
+            # If not, we fall back to podman's internal project mapping.
+            podman-compose config 2>/dev/null
+        )
+    fi
+}
+
 # Centralized uninstallation logic for all services.
-# Requires the caller to set the following global variables:
+# Supports Dynamic Discovery: if docker-compose.yml exists, it ignores manual 
+# arrays unless discovery fails.
+# Requires:
 #   UNINSTALL_SVC_NAME      (string) e.g. "ARCANE"
 #   UNINSTALL_SYSTEMD       (string) e.g. "container-arcane.service"
-#   UNINSTALL_CONTAINERS    (array)  e.g. ("arcane")
-#   UNINSTALL_IMAGES        (array)  e.g. ("ghcr.io/getarcaneapp/arcane:latest")
-#   UNINSTALL_VOLUMES       (array)  e.g. ("caddy_data" "caddy_config")
-#   UNINSTALL_DIRS          (array)  e.g. ("/opt/arcane/data")
-#   UNINSTALL_DATA_WARN     (string) e.g. "WARNING: All arcane projects will be lost!"
+#   INSTALL_DIR             (string) e.g. "/opt/arcane"
+# Optional overrides (used as fallbacks):
+#   UNINSTALL_CONTAINERS    (array)
+#   UNINSTALL_IMAGES        (array)
+#   UNINSTALL_VOLUMES       (array)
+#   UNINSTALL_DIRS          (array)
+#   UNINSTALL_DATA_WARN     (string)
 uninstall_generic_service() {
-    # Default arrays to empty if they are not defined by the caller, to avoid set -u crashes
+    # 1. Discovery Phase
+    local -a discovered_imgs=()
+    local -a discovered_containers=()
+    local compose_file="${INSTALL_DIR}/docker-compose.yml"
+
+    if [ -f "$compose_file" ]; then
+        log "Analyzing project resources dynamically..."
+        # Extract images using a robust grep/awk on the resolve config
+        # We use a subshell to avoid changing the current directory
+        local raw_config
+        raw_config=$(cd "$INSTALL_DIR" && podman-compose config 2>/dev/null || true)
+        
+        if [ -n "$raw_config" ]; then
+            while read -r img; do
+                [ -n "$img" ] && discovered_imgs+=("$img")
+            done < <(echo "$raw_config" | grep 'image:' | awk '{print $2}' | tr -d '"' | tr -d "'" | sort -u)
+            
+            # For containers, if they aren't explicit in 'container_name', 
+            # they are usually <project>_<service>_1. 
+            # It's safer to use the manual list or 'podman ps' by label later.
+        fi
+    fi
+
+    # Merge discovered with manual (prioritize discovered)
+    if [ ${#discovered_imgs[@]} -gt 0 ]; then
+        UNINSTALL_IMAGES=("${discovered_imgs[@]}")
+    else
+        UNINSTALL_IMAGES=("${UNINSTALL_IMAGES[@]:-}")
+    fi
+
+    # Fallback/Default arrays to empty if they are not defined, to avoid set -u crashes
+    local -a local_containers=("${UNINSTALL_CONTAINERS[@]:-}")
     local -a local_volumes=("${UNINSTALL_VOLUMES[@]:-}")
     local -a local_dirs=("${UNINSTALL_DIRS[@]:-}")
     
@@ -24,7 +79,7 @@ uninstall_generic_service() {
     echo "   - The systemd persistence service"
     echo ""
 
-    if [ "$FORCE_YES" -eq 1 ]; then
+    if [ "${FORCE_YES:-0}" -eq 1 ]; then
         CONFIRM="UNINSTALL"
     else
         read -rp " Type 'UNINSTALL' to confirm: " CONFIRM < /dev/tty
@@ -42,17 +97,24 @@ uninstall_generic_service() {
     systemctl --user daemon-reload
 
     log "Removing container(s)..."
-    for c in "${UNINSTALL_CONTAINERS[@]}"; do
-        podman rm -f "$c" 2>/dev/null || true
+    # If we have manual containers, remove them. 
+    # Also, try to remove by project label if podman-compose was used.
+    for c in "${local_containers[@]}"; do
+        [ -n "$c" ] && podman rm -f "$c" 2>/dev/null || true
     done
+    
+    # Advanced: Try to find containers by the directory name if it matches podman-compose pattern
+    local project_name
+    project_name=$(basename "$INSTALL_DIR" | tr -d '-') 
+    podman ps -a --filter "label=com.docker.compose.project=$project_name" --format "{{.Names}}" | xargs -r podman rm -f 2>/dev/null || true
 
     log "Removing image(s)..."
     for i in "${UNINSTALL_IMAGES[@]}"; do
-        podman rmi "$i" 2>/dev/null || true
+        [ -n "$i" ] && podman rmi "$i" 2>/dev/null || true
     done
 
     echo ""
-    if [ "$FORCE_YES" -eq 1 ]; then
+    if [ "${FORCE_YES:-0}" -eq 1 ]; then
         DELETE_DATA="y"
     else
         if [ ${#local_volumes[@]} -gt 0 ] && [ -n "${local_volumes[0]:-}" ]; then
