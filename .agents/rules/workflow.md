@@ -2,38 +2,101 @@
 trigger: always_on
 ---
 
-Estas reglas definen el comportamiento esperado del agente dentro de este entorno y proyecto.
+
+Este archivo define el comportamiento del agente en el entorno de desarrollo de este proyecto.
 
 ---
 
-## 🧠 Objetivo general del agente
+## Meta
 
-- Ser un asistente técnico enfocado en **análisis**, **diseño**, **documentación** y **optimización de flujos de trabajo**.
-- Mantener siempre la **coherencia** con el estado actual del proyecto y las decisiones previamente documentadas.
-- Priorizar soluciones **sostenibles**, **mantenibles** y bien documentadas frente a parches rápidos no estructurados.
-
----
-
-## 📂 Directorio de conocimiento: @beautifulMention
-
-- El directorio `@beautifulMention` es la **fuente de verdad** del proyecto.
-- El agente debe:
-  - **Consultarlo siempre** antes de proponer nuevas implementaciones o cambios.
-  - **Actualizarlo** cada vez que se tome una decisión relevante (features, refactorizaciones, errores, acuerdos de arquitectura).
-- Los documentos deben mantenerse claros, estructurados y con nombres descriptivos.
+- Versión: `1.0`
+- Autor: `engineer`
+- Descripción:  
+  Reglas de comportamiento del agente en el entorno de desarrollo.
 
 ---
 
-## 🐛 Manejo de errores y bugs
+## Objetivo general
 
-Cuando se informe un error o bug:
+El agente debe:
 
-1. **Analizar el problema**:
-   - Contexto (entorno, versiones, pasos para reproducir).
-   - Síntomas y posibles puntos de fallo.
-2. **Identificar causas probables** y ordenarlas por probabilidad.
-3. **Proponer soluciones** con:
-   - Pasos concretos de implementación.
-   - Impacto y riesgos.
-   - Criterios de verificación (tests, escenarios de prueba).
-4. **Documentar el resultado** en la carpeta `/Bugs` de `@beautifulMention` con el formato:
+- Ayudar a analizar, diseñar, documentar y optimizar flujos de trabajo de forma coherente con el estado del proyecto.
+- Mantener la sostenibilidad, mantenibilidad y claridad por encima de soluciones rápidas no estructuradas.
+
+---
+
+## Directorio de conocimiento: @beautifulMention
+
+El directorio `@beautifulMention` es la fuente de verdad del proyecto.
+
+El agente debe:
+
+- Consultar `@beautifulMention` siempre antes de proponer cambios o nuevas features.
+- Actualizar `@beautifulMention` cada vez que se tome una decisión relevante (features, refactorizaciones, errores).
+- Mantener documentos claros, con nombres descriptivos y estructura predecible.
+
+---
+
+## Gestión de errores y bugs
+
+Cuando se detecte o informe un error:
+
+- Analizar contexto, pasos de reproducción, síntomas e impacto.
+- Identificar causas probables y ordenarlas por probabilidad.
+- Proponer soluciones con pasos concretos, impacto y riesgos.
+- Documentar el resultado en la carpeta `/Bugs` de `@beautifulMention` con formato:  
+  `/Bugs/[YYYYMMDD]-[descripcion-corta].md`.
+
+---
+
+## Análisis de nuevas features
+
+Cuando se analice o integre una nueva feature:
+
+- Consultar primero `@beautifulMention` para revisar requisitos y decisiones previas.
+- Evitar soluciones redundantes o que contradigan el estado actual del proyecto.
+- Generar un plan de acción comparativo en tabla con columnas:  
+  `Opción`, `Descripción`, `Pros`, `Contras`, `Riesgos`, `Complejidad`.
+- Incluir una recomendación final justificada con la opción más adecuada.
+- Documentar el resultado en la carpeta relevante de `@beautifulMention` (por ejemplo, `/Features/` o `/Design/`).
+
+---
+
+## Refactorizaciones
+
+Cuando se proponga o analice una refactorización:
+
+- Justificar el motivo: legibilidad, mantenibilidad, rendimiento, seguridad, etc.
+- Definir claramente el alcance (módulos, servicios o componentes afectados).
+- Proponer un plan incremental con pasos, puntos de verificación y rollback.
+- Documentar el diseño y las actualizaciones en `@beautifulMention` durante el proceso.
+
+---
+
+## Estilo de documentación y comunicación
+
+El agente debe:
+
+- Usar lenguaje claro, directo y concreto.
+- Preferir listas y tablas al comparar opciones.
+- Emplear títulos cortos y descriptivos.
+- Escribir en español, salvo que se indique lo contrario.
+- Incluir criterios de éxito y ejemplos cuando sea relevante.
+
+---
+
+## Principios de comportamiento
+
+El agente debe:
+
+- No asumir el estado del proyecto; consultar siempre el directorio de conocimiento.
+- Evitar soluciones que contradigan decisiones ya documentadas sin justificación explícita.
+- Ser proactivo en la detección de errores de diseño o redundancias.
+- Mantener coherencia de estilo y estructura en todos los documentos generados.
+
+---
+
+> Nombre recomendado para el archivo dentro de Antigravity:  
+> `.agent/rules/agent.md`  
+> o  
+> `rules/agent.md` dentro del proyecto.
