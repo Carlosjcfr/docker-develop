@@ -1,0 +1,124 @@
+version: "3.7"
+
+x-logging: &default-logging
+  driver: "json-file"
+  options:
+    max-size: "20m"
+    max-file: "10"
+    compress: "true"
+
+services:
+  db:
+    image: postgres:${POSTGRES_VERSION}
+    shm_size: 1g
+    restart: unless-stopped
+    volumes:
+      - db_data:/var/lib/postgresql/data:Z
+    expose:
+      - 5432
+    environment:
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: windmill
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    logging: *default-logging
+
+  windmill_server:
+    image: ghcr.io/windmill-labs/windmill:${WINDMILL_VERSION}
+    pull_policy: always
+    deploy:
+      replicas: 1
+    restart: unless-stopped
+    ports:
+      - "${WINDMILL_PORT:-8000}:8000"
+      - "${WINDMILL_LSP_PORT:-2525}:2525"
+    environment:
+      - DATABASE_URL=postgres://postgres:${DB_PASSWORD}@db:5432/windmill?sslmode=disable
+      - MODE=server
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - worker_logs:/tmp/windmill/logs:Z
+    labels:
+      - dev.arcane.icon=${ARCANE_ICON}
+      - dev.arcane.category=${ARCANE_CATEGORY}
+      - com.docker.compose.project=windmill
+      - com.docker.compose.project.working_dir=/app/data/projects/windmill
+    logging: *default-logging
+
+  windmill_worker:
+    image: ghcr.io/windmill-labs/windmill:${WINDMILL_VERSION}
+    pull_policy: always
+    deploy:
+      replicas: 1
+      resources:
+        limits:
+          cpus: "1"
+          memory: 2048M
+    restart: unless-stopped
+    environment:
+      - DATABASE_URL=postgres://postgres:${DB_PASSWORD}@db:5432/windmill?sslmode=disable
+      - MODE=worker
+      - WORKER_GROUP=default
+      - FAVOR_UNSHARE_PID=true
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - worker_dependency_cache:/tmp/windmill/cache:Z
+      - worker_logs:/tmp/windmill/logs:Z
+    logging: *default-logging
+
+  windmill_worker_native:
+    image: ghcr.io/windmill-labs/windmill:${WINDMILL_VERSION}
+    pull_policy: always
+    deploy:
+      replicas: 1
+      resources:
+        limits:
+          cpus: "1"
+          memory: 2048M
+    restart: unless-stopped
+    environment:
+      - DATABASE_URL=postgres://postgres:${DB_PASSWORD}@db:5432/windmill?sslmode=disable
+      - MODE=worker
+      - WORKER_GROUP=native
+      - NATIVE_MODE=true
+      - NUM_WORKERS=8
+      - SLEEP_QUEUE=200
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - worker_logs:/tmp/windmill/logs:Z
+    logging: *default-logging
+
+  windmill_extra:
+    image: ghcr.io/windmill-labs/windmill-extra:${WINDMILL_EXTRA_VERSION:-latest}
+    pull_policy: always
+    restart: unless-stopped
+    expose:
+      - 3001 # LSP
+      - 3002 # Multiplayer
+      - 3003 # Debugger
+    environment:
+      - ENABLE_LSP=true
+      - ENABLE_MULTIPLAYER=false
+      - ENABLE_DEBUGGER=true
+      - DEBUGGER_PORT=3003
+      - ENABLE_NSJAIL=false
+      - REQUIRE_SIGNED_DEBUG_REQUESTS=false
+      - WINDMILL_BASE_URL=http://windmill_server:8000
+    volumes:
+      - lsp_cache:/pyls/.cache:Z
+    logging: *default-logging
+
+volumes:
+  db_data:
+  worker_dependency_cache:
+  worker_logs:
+  lsp_cache:

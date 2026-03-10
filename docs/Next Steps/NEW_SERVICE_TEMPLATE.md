@@ -1,7 +1,5 @@
 # Plantilla Rápida: Nuevo Servicio
 
-> **Uso:** Copia desde `---` hasta el final. Rellena las 4 variables entre corchetes `[ ]` y pégalo en el chat de tu IA.
-
 ---
 Actúa como experto DevOps. Crea los 4 ficheros para integrar este servicio en mi framework `docker-develop` (Podman rootless):
 

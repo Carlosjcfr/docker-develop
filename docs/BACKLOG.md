@@ -8,6 +8,7 @@ This document tracks the implementation status of all proposed features and arch
 
 | Feature | Source Document | Description |
 | :--- | :--- | :--- |
+| **Permission Denied in `rm -rf`** | `04_uninstall.sh` | High |
 | **Unified Service Manager** | `ARCHITECTURE.md` | Single entry point via `deploy.sh`. |
 | **Compiled Shared Library** | `ARCHITECTURE.md` | Centralized `lib/lib.sh` logic. |
 | **Security Hardening** | `ARCHITECTURE.md` | Non-root, umask 177, auto-secrets. |
@@ -34,7 +35,6 @@ This document tracks the implementation status of all proposed features and arch
 
 | Bug / Issue | Source Document | Priority |
 | :--- | :--- | :--- |
-| **Permission Denied in `rm -rf`** | `04_uninstall.sh` | High |
 
 ---
 
