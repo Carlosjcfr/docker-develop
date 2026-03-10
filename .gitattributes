@@ -1,0 +1,4 @@
+# Force LF line endings for all shell scripts
+# This prevents Windows vs Linux "ghost" changes in CI
+*.sh text eol=lf
+lib/lib.sh text eol=lf

@@ -29,7 +29,30 @@ on:
       - 'projects/**/*.sh'
       - 'deploy.sh'
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
+
+  # ============================================================================
+  # JOB -1 — Path Filter
+  # Detects which parts of the repo changed to optimize subsequent jobs.
+  # ============================================================================
+  changes:
+    name: Detect Changes
+    runs-on: ubuntu-latest
+    outputs:
+      lib: ${{ steps.filter.outputs.lib }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            lib:
+              - 'lib/src/**'
+              - 'lib/build.sh'
 
   # ============================================================================
   # JOB 0 — Auto Build lib.sh
@@ -37,6 +60,8 @@ jobs:
   # ============================================================================
   auto-build:
     name: Auto-compile lib.sh
+    needs: changes
+    if: needs.changes.outputs.lib == 'true'
     runs-on: ubuntu-latest
     permissions:
       contents: write
