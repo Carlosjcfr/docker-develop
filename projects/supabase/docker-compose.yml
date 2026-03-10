@@ -9,6 +9,7 @@ services:
       - "dev.arcane.icon=${ARCANE_ICON:-si:supabase}"
       - "dev.arcane.category=${ARCANE_CATEGORY:-Database}"
       - "com.docker.compose.project=supabase"
+      - "com.docker.compose.project.working_dir=/app/data/projects/supabase"
     ports:
       - "${POSTGRES_PORT}:5432"
     environment:

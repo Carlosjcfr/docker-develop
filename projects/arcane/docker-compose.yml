@@ -14,6 +14,7 @@ services:
       - "dev.arcane.icon=${ARCANE_ICON:-si:arcane}"
       - "dev.arcane.category=${ARCANE_CATEGORY:-Management}"
       - "com.docker.compose.project=arcane"
+      - "com.docker.compose.project.working_dir=/app/data/projects/arcane"
 
     ports:
       - "${APP_PORT:-3552}:3552"

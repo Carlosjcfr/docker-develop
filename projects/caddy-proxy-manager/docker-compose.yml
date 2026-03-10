@@ -25,6 +25,7 @@ services:
       - "dev.arcane.icon=${ARCANE_ICON:-si:caddy}"
       - "dev.arcane.category=${ARCANE_CATEGORY:-Proxy}"
       - "com.docker.compose.project=caddy"
+      - "com.docker.compose.project.working_dir=/app/data/projects/caddy"
 
     ports:
       - "80:80" # HTTP
