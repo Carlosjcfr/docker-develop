@@ -164,16 +164,25 @@ before they reach a production server.
 
 ---
 
-## Recommended Next Step
+## Recommended Next Step (Evaluation)
 
-Before adding a second service script (e.g. for Arcane or any future service),
-implement **3.1 (shared `lib.sh`)** first. The refactor cost is minimal when there
-are only 1–2 scripts, but grows significantly with each new service added without it.
-
-The natural implementation sequence is:
+The originally proposed sequence was:
 
 ```text
 1.4 (logging) → 1.1 + 1.2 (CLI + env vars) → 1.3 (preflight) →
 3.1 (lib.sh)  → 2.1 (health checks)         → 2.2 (rollback)  →
 3.2 (stack.sh)
 ```
+
+**Current Fulfillment Status**:
+The sequence has been successfully implemented up to **2.1 (health checks)**. `lib.sh` acts as a solid core, logging is standardized, CLI flags are functional, and pre-flight/HTTP health checks are operational. However, the sequence is **NOT completely fulfilled**.
+
+### Missing Implementation 1: 2.2 (Rollback on Failed Updates)
+
+- **Why it is missing:** The update logic (`do_update()`) currently creates passive backups (`.bak` files) of configurations. However, if the new containers crash or fail the post-update health checks, the script simply aborts (exit code 3), leaving the environment in a broken state. The focus so far has been on fresh installations and fixing initial deployment bugs rather than update resilience.
+- **How to solve it:** Wrap the update deployment and health-check execution in a logical validation block. If `verify_containers_running` or `check_http_health` fails after an update, the script must automatically trigger a new `rollback()` function. This function will stop the broken containers, restore `.env`, `docker-compose.yml`, and `config.env` from their `.bak` variants, and re-deploy the previous known-good state.
+
+### Missing Implementation 2: 3.2 (Top-Level Orchestrator `stack.sh`)
+
+- **Why it is missing:** Recent development efforts prioritized the stabilization of complex individual macro-services (like Supabase and Arcane) and ensuring their compatibility with rootless Podman environments, delaying the need for a global orchestrator.
+- **How to solve it:** Create a master `stack.sh` script in the root directory. This script will define a strict dependency graph (e.g., Caddy Proxy must run first), aggregate the configuration, and sequentially invoke each individual service script using the `--install` and `--yes` flags for a fully automated, one-click server provisioning workflow.

@@ -123,4 +123,6 @@ services:
 
 volumes:
   supabase_db_data:
+    name: supabase_db_data
   supabase_storage_data:
+    name: supabase_storage_data

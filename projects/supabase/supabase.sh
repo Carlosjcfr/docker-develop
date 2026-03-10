@@ -106,9 +106,9 @@ deploy_and_persist() {
     done
 
     log "Patching SQL scripts (Preventing psql expansion failures in rootless)..."
-    sed -i "s|\\\\set pgpass \`echo \"\$POSTGRES_PASSWORD\"\`|\\\\set pgpass '${POSTGRES_PASSWORD}'|g" "$INSTALL_DIR/volumes/db/roles.sql"
-    sed -i "s|\\\\set jwt_secret \`echo \"\$JWT_SECRET\"\`|\\\\set jwt_secret '${JWT_SECRET}'|g" "$INSTALL_DIR/volumes/db/jwt.sql"
-    sed -i "s|\\\\set jwt_exp \`echo \"\$JWT_EXP\"\`|\\\\set jwt_exp '${JWT_EXPIRY}'|g" "$INSTALL_DIR/volumes/db/jwt.sql"
+    sed -i "s|\\\\set pgpass \`echo \"\$POSTGRES_PASSWORD\"\`|\\\\set pgpass ${POSTGRES_PASSWORD}|g" "$INSTALL_DIR/volumes/db/roles.sql"
+    sed -i "s|\\\\set jwt_secret \`echo \"\$JWT_SECRET\"\`|\\\\set jwt_secret ${JWT_SECRET}|g" "$INSTALL_DIR/volumes/db/jwt.sql"
+    sed -i "s|\\\\set jwt_exp \`echo \"\$JWT_EXP\"\`|\\\\set jwt_exp ${JWT_EXPIRY}|g" "$INSTALL_DIR/volumes/db/jwt.sql"
 
     podman-compose config > /dev/null 2>&1 || { err "Invalid docker-compose syntax. Aborting installation."; exit 1; }
 
@@ -233,7 +233,7 @@ do_uninstall() {
     else
         UNINSTALL_IMAGES=("docker.io/supabase/postgres:\${POSTGRES_VERSION}" "docker.io/supabase/studio:\${STUDIO_VERSION}" "docker.io/library/kong:\${KONG_VERSION}" "docker.io/supabase/gotrue:\${GOTRUE_VERSION}" "docker.io/postgrest/postgrest:\${POSTGREST_VERSION}" "docker.io/supabase/realtime:\${REALTIME_VERSION}" "docker.io/supabase/postgres-meta:\${META_VERSION}" "docker.io/supabase/storage-api:\${STORAGE_VERSION}")
     fi
-    UNINSTALL_VOLUMES=("supabase_db_data" "supabase_storage_data")
+    UNINSTALL_VOLUMES=("supabase_supabase_db_data" "supabase_supabase_storage_data" "supabase_db_data" "supabase_storage_data")
     UNINSTALL_DIRS=()
     uninstall_generic_service
 }
