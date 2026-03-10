@@ -30,7 +30,7 @@ load_configuration() {
 generate_runtime_env() {
     local OLD_UMASK=$(umask); umask 177
 
-    # Aseguramos de que las credenciales obligatorias existen
+    # Ensure mandatory credentials exist
     manage_credentials "$INSTALL_DIR" POSTGRES_PASSWORD JWT_SECRET SECRET_KEY_BASE
 
     cat <<EOF > "$INSTALL_DIR/.env"
@@ -60,7 +60,7 @@ JWT_EXPIRY="$JWT_EXPIRY"
 EOF
     umask "$OLD_UMASK"
 
-    # Generamos el manifiesto de Kong obligatorio para Supabase de forma estática
+    # Generate mandatory Kong manifest for Supabase statically
     if [ ! -f "$INSTALL_DIR/kong.yml" ]; then
         cat <<EOF > "$INSTALL_DIR/kong.yml"
 _format_version: "2.1"
@@ -86,37 +86,37 @@ deploy_and_persist() {
     log "Starting services with podman-compose..."
     cd "$INSTALL_DIR"
 
-    log "Descargando volúmenes SQL de inicialización oficiales de Supabase..."
+    log "Downloading official Supabase initialization SQL volumes..."
     mkdir -p "$INSTALL_DIR/volumes/db"
     local raw_base="https://raw.githubusercontent.com/supabase/supabase/master/docker/volumes/db"
     for sql_file in realtime.sql webhooks.sql roles.sql jwt.sql _supabase.sql logs.sql pooler.sql; do
         if [ ! -f "$INSTALL_DIR/volumes/db/$sql_file" ]; then
-            curl -sSL "$raw_base/$sql_file" -o "$INSTALL_DIR/volumes/db/$sql_file" || err "Fallo al descargar $sql_file del repositorio oficial."
+            curl -sSL "$raw_base/$sql_file" -o "$INSTALL_DIR/volumes/db/$sql_file" || err "Failed to download $sql_file from the official repository."
         fi
     done
 
-    log "Parcheando scripts SQL (Previniendo fallos de expansión psql en rootless)..."
+    log "Patching SQL scripts (Preventing psql expansion failures in rootless)..."
     sed -i "s|\\\\set pgpass \`echo \"\$POSTGRES_PASSWORD\"\`|\\\\set pgpass '${POSTGRES_PASSWORD}'|g" "$INSTALL_DIR/volumes/db/roles.sql"
     sed -i "s|\\\\set jwt_secret \`echo \"\$JWT_SECRET\"\`|\\\\set jwt_secret '${JWT_SECRET}'|g" "$INSTALL_DIR/volumes/db/jwt.sql"
     sed -i "s|\\\\set jwt_exp \`echo \"\$JWT_EXP\"\`|\\\\set jwt_exp '${JWT_EXPIRY}'|g" "$INSTALL_DIR/volumes/db/jwt.sql"
 
-    podman-compose config -q || err "Sintaxis de docker-compose invalida. Abortando instalación."
+    podman-compose config -q || err "Invalid docker-compose syntax. Aborting installation."
 
-    log "Extrayendo imágenes de contenedor (este proceso es silencioso y puede tardar)..."
+    log "Pulling container images (this process is silent and may take a while)..."
     if ! podman-compose pull > /dev/null 2>&1; then
-        err "Fallo al descargar imágenes. Posible Tag inexistente o error de red."
-        read -rp " ¿Deseas sustituir dinámicamente todos los tags por 'latest' e intentar de nuevo? [y/N]: " FIX_TAGS
+        err "Failed to download images. Possible non-existent tag or network error."
+        read -rp " Do you want to dynamically replace all tags with 'latest' and try again? [y/N]: " FIX_TAGS
         if [[ "$FIX_TAGS" =~ ^[Yy]$ ]]; then
-            log "Parcheando tags a 'latest' en docker-compose.yml..."
+            log "Patching tags to 'latest' in docker-compose.yml..."
             sed -i '/^[[:space:]]*image:/s/:[^:/]*$/:latest/' "$INSTALL_DIR/docker-compose.yml"
-            podman-compose pull > /dev/null 2>&1 || { err "Fallo crítico repetido al probar con latest."; exit 1; }
+            podman-compose pull > /dev/null 2>&1 || { err "Repeated critical failure when testing with latest."; exit 1; }
         else
-            err "Lanza la actualización manualmente para depurar el error."
+            err "Run the update manually to debug the error."
             exit 1
         fi
     fi
 
-    log "Iniciando contenedores..."
+    log "Starting containers..."
     podman-compose up -d > /dev/null 2>&1
 
     verify_containers_running "supabase-db" "supabase-studio" "supabase-kong" "supabase-auth" "supabase-rest" "supabase-realtime" "supabase-meta" "supabase-storage"

@@ -78,7 +78,7 @@ check_secrets_not_in_config() {
 check_install_dir_writable() {
     local dir="${1:?check_install_dir_writable requires a directory argument}"
     
-    # Intenta crear como usuario normal. Si falla o no es escribible, escalamos a sudo.
+    # Try to create as normal user. If it fails or is not writable, scale to sudo.
     if ! mkdir -p "$dir" 2>/dev/null || ! [ -w "$dir" ]; then
         log "Install directory '$dir' needs elevated permissions to be created."
         log "Attempting to create it automatically using 'sudo'..."
