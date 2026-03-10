@@ -218,7 +218,6 @@ do_install() {
 
     generate_runtime_env
     deploy_and_persist
-    register_arcane_project "arcane" "$INSTALL_DIR"
     print_success
 
 }
@@ -266,7 +265,6 @@ do_update() {
     podman-compose pull > /dev/null 2>&1
 
     deploy_and_persist
-    register_arcane_project "arcane" "$INSTALL_DIR"
     print_success
 
 }

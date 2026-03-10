@@ -10,6 +10,11 @@ register_arcane_project() {
     local install_dir="${2:?register_arcane_project requires an installation directory}"
     local arcane_projects_dir="/opt/arcane/projects"
 
+    if [[ "$project_name" == "arcane" ]]; then
+        log "Skipping Arcane self-registration to prevent circular self-management."
+        return 0
+    fi
+
     log "Registering project '$project_name' in Arcane..."
 
     # Ensure the parent directory exists
