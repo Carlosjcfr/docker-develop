@@ -10,8 +10,14 @@ services:
     environment:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     volumes:
+      - ./volumes/db/realtime.sql:/docker-entrypoint-initdb.d/migrations/99-realtime.sql:Z
+      - ./volumes/db/webhooks.sql:/docker-entrypoint-initdb.d/init-scripts/98-webhooks.sql:Z
+      - ./volumes/db/roles.sql:/docker-entrypoint-initdb.d/init-scripts/99-roles.sql:Z
+      - ./volumes/db/jwt.sql:/docker-entrypoint-initdb.d/init-scripts/99-jwt.sql:Z
+      - ./volumes/db/_supabase.sql:/docker-entrypoint-initdb.d/migrations/97-_supabase.sql:Z
+      - ./volumes/db/logs.sql:/docker-entrypoint-initdb.d/migrations/99-logs.sql:Z
+      - ./volumes/db/pooler.sql:/docker-entrypoint-initdb.d/migrations/99-pooler.sql:Z
       - supabase_db_data:/var/lib/postgresql/data:Z
-
   studio:
     container_name: supabase-studio
     image: docker.io/supabase/studio:${STUDIO_VERSION}
@@ -35,6 +41,7 @@ services:
       GOTRUE_DB_DATABASE_URL: postgres://postgres:${POSTGRES_PASSWORD}@db:5432/postgres
       GOTRUE_SITE_URL: http://${HOST_IP}:${STUDIO_PORT}
       GOTRUE_JWT_SECRET: ${JWT_SECRET}
+      API_EXTERNAL_URL: http://${HOST_IP}:${KONG_PORT}
 
   rest:
     container_name: supabase-rest

@@ -80,6 +80,15 @@ deploy_and_persist() {
     log "Starting services with podman-compose..."
     cd "$INSTALL_DIR"
 
+    log "Descargando volúmenes SQL de inicialización oficiales de Supabase..."
+    mkdir -p "$INSTALL_DIR/volumes/db"
+    local raw_base="https://raw.githubusercontent.com/supabase/supabase/master/docker/volumes/db"
+    for sql_file in realtime.sql webhooks.sql roles.sql jwt.sql _supabase.sql logs.sql pooler.sql; do
+        if [ ! -f "$INSTALL_DIR/volumes/db/$sql_file" ]; then
+            curl -sSL "$raw_base/$sql_file" -o "$INSTALL_DIR/volumes/db/$sql_file" || err "Fallo al descargar $sql_file del repositorio oficial."
+        fi
+    done
+
     podman-compose config -q || err "Sintaxis de docker-compose invalida. Abortando instalación."
 
     log "Extrayendo imágenes de contenedor..."
