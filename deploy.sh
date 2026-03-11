@@ -56,6 +56,19 @@ registry_field() {
     echo "$entry" | cut -d'|' -f$((idx + 1))
 }
 
+# Pre-calculate running containers to avoid O(N) podman calls in the loop
+declare -A RUNNING_MAP
+
+update_run_state() {
+    RUNNING_MAP=()
+    # Get all container names that are in 'running' state
+    while read -r name; do
+        if [ -n "$name" ]; then
+            RUNNING_MAP["$name"]=1
+        fi
+    done < <(podman ps --format "{{.Names}}" --filter "status=running" 2>/dev/null)
+}
+
 # Check if a service is currently installed.
 # Returns 0 if installed, 1 otherwise.
 # Usage: is_installed INSTALL_DIR MAIN_CONTAINER
@@ -63,16 +76,21 @@ is_installed() {
     local dir="$1"
     local container="$2"
     
-    # Check if .env exists AND if either the new short name or the old prefixed name exists
-    if [ -f "$dir/.env" ]; then
-        if podman container exists "$container" 2>/dev/null; then
-            return 0
-        fi
-        # Specific check for legacy Supabase names
-        if [[ "$container" == "studio" ]] && podman container exists "supabase-studio" 2>/dev/null; then
-            return 0
-        fi
+    # Check if .env exists
+    if [ ! -f "$dir/.env" ]; then
+        return 1
     fi
+
+    # Check the pre-calculated running map
+    if [[ -n "${RUNNING_MAP[$container]:-}" ]]; then
+        return 0
+    fi
+
+    # Specific check for legacy Supabase names (fallback)
+    if [[ "$container" == "studio" ]] && [[ -n "${RUNNING_MAP["supabase-studio"]:-}" ]]; then
+        return 0
+    fi
+
     return 1
 }
 
@@ -103,6 +121,8 @@ fi
 # =============================================================================
 # MAIN MENU
 # =============================================================================
+
+update_run_state
 
 while true; do
     echo ""
