@@ -23,6 +23,7 @@ Actúa como experto DevOps. Crea los 5 ficheros para integrar este servicio en m
    - **Registro del Proyecto:** El script `.sh` debe llamar a `register_arcane_project "<slug>" "$INSTALL_DIR"` tras el despliegue.
    - **Variables Estéticas:** Los valores de icono y categoría deben ser parametrizables desde `config.env`.
 10. **Nombres de Contenedor Explícitos (Health Checks):** Define siempre `container_name: <nombre>` debajo de cada bloque de servicio (`image: x`) en tu `docker-compose.yml`. Si no lo haces, `podman-compose` generará nombres aleatorios y las comprobaciones de estado `verify_containers_running` fracasarán en el despliegue con estatus "missing".
+11. **Auto-Registro:** Todo servicio debe incluir un archivo `.registry` en su carpeta de proyecto con la línea de registro exacta que se usará en `deploy.sh`.
 
 **ESQUELETO OBLIGATORIO PARA `<slug>.sh`:**
 No inventes funciones. Limítate a rellenar este exacto molde (usando variables base como `$HOST_IP` y `$PUID`):
