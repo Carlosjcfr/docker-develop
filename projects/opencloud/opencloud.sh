@@ -172,6 +172,16 @@ do_update() {
     print_success
 }
 
+do_show_credentials() {
+    load_configuration
+    echo ""
+    echo "=== OpenCloud Credentials ==="
+    echo " Admin User: admin"
+    echo " Password:   $INITIAL_ADMIN_PASSWORD"
+    echo "============================="
+    echo ""
+}
+
 # -----------------------------------------------------------------------------
 # MAIN LOOP ENTRY POINT
 # -----------------------------------------------------------------------------
@@ -181,20 +191,21 @@ parse_args "$@"
 
 if [ -n "$CMD_ACTION" ]; then
     case "$CMD_ACTION" in
-        install)   do_install ;;
-        start)     do_start ;;
-        update)    do_update ;;
-        uninstall) do_uninstall ;;
+        install)     do_install ;;
+        start)       do_start ;;
+        update)      do_update ;;
+        uninstall)   do_uninstall ;;
+        credentials) do_show_credentials ;;
         *) err "Invalid action."; exit 1 ;;
     esac
     exit 0
 fi
 
 if check_existing_installation "/opt/opencloud"; then
-    echo "1) Start 2) Update 3) Uninstall"
-    read -rp " Select [1-3]: " ACTION
+    echo "1) Start 2) Update 3) Uninstall 4) Show Credentials"
+    read -rp " Select [1-4]: " ACTION
     case "$ACTION" in
-        1) do_start ;; 2) do_update ;; 3) do_uninstall ;; *) exit 0 ;;
+        1) do_start ;; 2) do_update ;; 3) do_uninstall ;; 4) do_show_credentials ;; *) exit 0 ;;
     esac
 else
     do_install
