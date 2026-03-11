@@ -208,11 +208,31 @@ if [ -n "$CMD_ACTION" ]; then
 fi
 
 if check_existing_installation "/opt/<slug>"; then
-    echo "1) Start 2) Update 3) Uninstall"
-    read -rp " Select [1-3]: " ACTION
-    case "$ACTION" in
-        1) do_start ;; 2) do_update ;; 3) do_uninstall ;; *) exit 0 ;;
-    esac
+    if [ -t 0 ] && [ "${FORCE_YES:-0}" -eq 0 ]; then
+        echo ""
+        echo "================================================================="
+        echo " <NAME> — Management"
+        echo "================================================================="
+        echo " Existing installation detected at /opt/<slug>"
+        echo ""
+        echo "   1) Start      — Start the existing container"
+        echo "   2) Update     — Download latest config and redeploy"
+        echo "   3) Uninstall  — Remove container, service, and data"
+        echo "   0) Cancel"
+        echo ""
+        read -rp " Select [0-3]: " ACTION
+
+        case "$ACTION" in
+            1) do_start ;;
+            2) do_update ;;
+            3) do_uninstall ;;
+            0) log "Cancelled."; exit 0 ;;
+            *) err "Invalid option."; exit 1 ;;
+        esac
+    else
+        log "Existing installation detected. Running update..."
+        do_update
+    fi
 else
     do_install
 fi

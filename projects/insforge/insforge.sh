@@ -8,10 +8,22 @@ REPO_RAW="$REPO_BASE/projects/insforge"
 source <(curl -fsSL "$REPO_BASE/lib/lib.sh")
 
 load_configuration() {
-    # shellcheck source=/dev/null
-    source "$TMP_DIR/config.env"
+    local config_src=""
+    if [ -n "${TMP_DIR:-}" ] && [ -f "$TMP_DIR/config.env" ]; then
+        config_src="$TMP_DIR/config.env"
+    elif [ -f "$INSTALL_DIR/config.env" ]; then
+        config_src="$INSTALL_DIR/config.env"
+    fi
+
+    if [ -n "$config_src" ]; then
+        # shellcheck source=/dev/null
+        source "$config_src"
+        # Security guard
+        check_secrets_not_in_config "$config_src" ADMIN_PASSWORD POSTGRES_PASSWORD JWT_SECRET ENCRYPTION_KEY
+    fi
+
     INSTALL_DIR="${INSTALL_DIR:-/opt/insforge}"
-    # Inicializa tus variables personalizadas aquí
+    # Initialize customs
     ARCANE_ICON="${ARCANE_ICON:-si:insomnia}"
     ARCANE_CATEGORY="${ARCANE_CATEGORY:-Development}"
 
@@ -75,12 +87,8 @@ do_uninstall() {
     UNINSTALL_SYSTEMD="container-insforge.service" 
     # shellcheck disable=SC2034
     UNINSTALL_CONTAINERS=("insforge-app" "insforge-db" "insforge-postgrest" "insforge-deno")
-    
-    # NOTE: UNINSTALL_IMAGES array is only for static fallback.
-    # The engine now automatically discovers images from docker-compose.yml.
     # shellcheck disable=SC2034
     UNINSTALL_IMAGES=("ghcr.io/insforge/insforge-oss:v1.5.0" "ghcr.io/insforge/postgres-all:latest" "postgrest/postgrest:v12.2.12" "ghcr.io/insforge/deno-runtime:latest")
-    
     # shellcheck disable=SC2034
     UNINSTALL_VOLUMES=("insforge_postgres-data" "insforge_deno_cache" "insforge_storage-data" "insforge_insforge-logs")
     # shellcheck disable=SC2034
@@ -148,13 +156,11 @@ print_success() {
     echo "================================================================="
     echo " Insforge deployed and secured with systemd."
     echo " URL: http://$HOST_IP:$INSFORGE_PORT"
+    # shellcheck disable=SC2154
     echo " Admin: $ADMIN_EMAIL / $ADMIN_PASSWORD"
     echo "================================================================="
 }
 
-# -----------------------------------------------------------------------------
-# REQUIRED ACTIONS (Añade el bloque completo para install/start/update)
-# -----------------------------------------------------------------------------
 do_install() {
     download_repo_files "$REPO_RAW" config.env docker-compose.yml
     offer_interactive_mode; load_configuration; detect_host_ip
@@ -199,16 +205,6 @@ do_update() {
     print_success
 }
 
-do_show_credentials() {
-    load_configuration
-    echo ""
-    echo "=== Insforge Credentials ==="
-    echo " Email:    $ADMIN_EMAIL"
-    echo " Password: $ADMIN_PASSWORD"
-    echo "============================"
-    echo ""
-}
-
 # -----------------------------------------------------------------------------
 # MAIN LOOP ENTRY POINT
 # -----------------------------------------------------------------------------
@@ -218,22 +214,41 @@ parse_args "$@"
 
 if [ -n "$CMD_ACTION" ]; then
     case "$CMD_ACTION" in
-        install)     do_install ;;
-        start)       do_start ;;
-        update)      do_update ;;
-        uninstall)   do_uninstall ;;
-        credentials) do_show_credentials ;;
+        install)   do_install ;;
+        start)     do_start ;;
+        update)    do_update ;;
+        uninstall) do_uninstall ;;
         *) err "Invalid action."; exit 1 ;;
     esac
     exit 0
 fi
 
 if check_existing_installation "/opt/insforge"; then
-    echo "1) Start 2) Update 3) Uninstall 4) Show Credentials"
-    read -rp " Select [1-4]: " ACTION
-    case "$ACTION" in
-        1) do_start ;; 2) do_update ;; 3) do_uninstall ;; 4) do_show_credentials ;; *) exit 0 ;;
-    esac
+    if [ -t 0 ] && [ "${FORCE_YES:-0}" -eq 0 ]; then
+        echo ""
+        echo "================================================================="
+        echo " Insforge — Management"
+        echo "================================================================="
+        echo " Existing installation detected at /opt/insforge"
+        echo ""
+        echo "   1) Start      — Start the existing container"
+        echo "   2) Update     — Download latest config and redeploy"
+        echo "   3) Uninstall  — Remove container, service, and data"
+        echo "   0) Cancel"
+        echo ""
+        read -rp " Select [0-3]: " ACTION
+
+        case "$ACTION" in
+            1) do_start ;;
+            2) do_update ;;
+            3) do_uninstall ;;
+            0) log "Cancelled."; exit 0 ;;
+            *) err "Invalid option."; exit 1 ;;
+        esac
+    else
+        log "Existing installation detected. Running update..."
+        do_update
+    fi
 else
     do_install
 fi

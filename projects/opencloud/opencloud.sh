@@ -8,10 +8,19 @@ REPO_RAW="$REPO_BASE/projects/opencloud"
 source <(curl -fsSL "$REPO_BASE/lib/lib.sh")
 
 load_configuration() {
-    # shellcheck source=/dev/null
-    source "$TMP_DIR/config.env"
+    local config_src=""
+    if [ -n "${TMP_DIR:-}" ] && [ -f "$TMP_DIR/config.env" ]; then
+        config_src="$TMP_DIR/config.env"
+    elif [ -f "$INSTALL_DIR/config.env" ]; then
+        config_src="$INSTALL_DIR/config.env"
+    fi
+
+    if [ -n "$config_src" ]; then
+        # shellcheck source=/dev/null
+        source "$config_src"
+    fi
+
     INSTALL_DIR="${INSTALL_DIR:-/opt/opencloud}"
-    # Inicializa tus variables personalizadas aquí
     OPENCLOUD_VERSION="${OPENCLOUD_VERSION:-5.2.0}"
     OPENCLOUD_PORT="${OPENCLOUD_PORT:-9200}"
     ARCANE_ICON="${ARCANE_ICON:-si:opencloud}"
@@ -45,12 +54,8 @@ do_uninstall() {
     UNINSTALL_SYSTEMD="container-opencloud.service" 
     # shellcheck disable=SC2034
     UNINSTALL_CONTAINERS=("opencloud")
-    
-    # NOTE: UNINSTALL_IMAGES array is only for static fallback.
-    # The engine now automatically discovers images from docker-compose.yml.
     # shellcheck disable=SC2034
     UNINSTALL_IMAGES=("docker.io/opencloudeu/opencloud-rolling:5.2.0")
-    
     # shellcheck disable=SC2034
     UNINSTALL_VOLUMES=()
     # shellcheck disable=SC2034
@@ -118,25 +123,21 @@ print_success() {
     echo "================================================================="
     echo " OpenCloud deployed and secured with systemd."
     echo " URL: https://$HOST_IP:$OPENCLOUD_PORT"
+    # shellcheck disable=SC2154
     echo " Admin: admin / $INITIAL_ADMIN_PASSWORD"
     echo "================================================================="
 }
 
-# -----------------------------------------------------------------------------
-# REQUIRED ACTIONS
-# -----------------------------------------------------------------------------
 do_install() {
     download_repo_files "$REPO_RAW" config.env docker-compose.yml
     offer_interactive_mode; load_configuration; detect_host_ip
     
-    # Generate admin password if not provided
     manage_credentials "$INSTALL_DIR" INITIAL_ADMIN_PASSWORD
     setup_lingering_and_socket
     
     check_install_dir_writable "$INSTALL_DIR"
     mkdir -p "$INSTALL_DIR/config" "$INSTALL_DIR/data"
     
-    # Download essential sub-volumes/configs
     log "Downloading essential configuration files..."
     curl -fsSL "https://raw.githubusercontent.com/opencloud-eu/opencloud-compose/main/config/opencloud/csp.yaml" -o "$INSTALL_DIR/config/csp.yaml" || touch "$INSTALL_DIR/config/csp.yaml"
     curl -fsSL "https://raw.githubusercontent.com/opencloud-eu/opencloud-compose/main/config/opencloud/banned-password-list.txt" -o "$INSTALL_DIR/config/banned-password-list.txt" || touch "$INSTALL_DIR/config/banned-password-list.txt"
@@ -172,16 +173,6 @@ do_update() {
     print_success
 }
 
-do_show_credentials() {
-    load_configuration
-    echo ""
-    echo "=== OpenCloud Credentials ==="
-    echo " Admin User: admin"
-    echo " Password:   $INITIAL_ADMIN_PASSWORD"
-    echo "============================="
-    echo ""
-}
-
 # -----------------------------------------------------------------------------
 # MAIN LOOP ENTRY POINT
 # -----------------------------------------------------------------------------
@@ -191,22 +182,41 @@ parse_args "$@"
 
 if [ -n "$CMD_ACTION" ]; then
     case "$CMD_ACTION" in
-        install)     do_install ;;
-        start)       do_start ;;
-        update)      do_update ;;
-        uninstall)   do_uninstall ;;
-        credentials) do_show_credentials ;;
+        install)   do_install ;;
+        start)     do_start ;;
+        update)    do_update ;;
+        uninstall) do_uninstall ;;
         *) err "Invalid action."; exit 1 ;;
     esac
     exit 0
 fi
 
 if check_existing_installation "/opt/opencloud"; then
-    echo "1) Start 2) Update 3) Uninstall 4) Show Credentials"
-    read -rp " Select [1-4]: " ACTION
-    case "$ACTION" in
-        1) do_start ;; 2) do_update ;; 3) do_uninstall ;; 4) do_show_credentials ;; *) exit 0 ;;
-    esac
+    if [ -t 0 ] && [ "${FORCE_YES:-0}" -eq 0 ]; then
+        echo ""
+        echo "================================================================="
+        echo " OpenCloud — Management"
+        echo "================================================================="
+        echo " Existing installation detected at /opt/opencloud"
+        echo ""
+        echo "   1) Start      — Start the existing container"
+        echo "   2) Update     — Download latest config and redeploy"
+        echo "   3) Uninstall  — Remove container, service, and data"
+        echo "   0) Cancel"
+        echo ""
+        read -rp " Select [0-3]: " ACTION
+
+        case "$ACTION" in
+            1) do_start ;;
+            2) do_update ;;
+            3) do_uninstall ;;
+            0) log "Cancelled."; exit 0 ;;
+            *) err "Invalid option."; exit 1 ;;
+        esac
+    else
+        log "Existing installation detected. Running update..."
+        do_update
+    fi
 else
     do_install
 fi

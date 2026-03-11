@@ -326,9 +326,9 @@ if check_existing_installation "/opt/caddy"; then
         echo "================================================================="
         echo " Existing installation detected at /opt/caddy"
         echo ""
-        echo "   1) Start      — Start the existing services"
+        echo "   1) Start      — Start the existing container"
         echo "   2) Update     — Download latest config and redeploy"
-        echo "   3) Uninstall  — Remove containers, service, and data"
+        echo "   3) Uninstall  — Remove container, service, and data"
         echo "   0) Cancel"
         echo ""
         read -rp " Select [0-3]: " ACTION
