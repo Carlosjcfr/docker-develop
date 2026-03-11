@@ -1,7 +1,7 @@
 # Plantilla Rápida: Nuevo Servicio
 
 ---
-Actúa como experto DevOps. Crea los 4 ficheros para integrar este servicio en mi framework `docker-develop` (Podman rootless):
+Actúa como experto DevOps. Crea los 5 ficheros para integrar este servicio en mi framework `docker-develop` (Podman rootless):
 
 **[SERVICIO]:** <nombre_y_descripcion> (ej: AdGuard Home - DNS blocker)
 **[PUERTOS]:** <lista_puertos>
@@ -13,7 +13,7 @@ Actúa como experto DevOps. Crea los 4 ficheros para integrar este servicio en m
 1. **Rootless:** Cero referencias a `sudo` o ejecución como root.
 2. **SELinux:** Todo mapeo de carpetas/volúmenes en `docker-compose.yml` debe terminar en `:Z`.
 3. **Secretos:** Nunca poner passwords fijos en `config.env`; se auto-generan vía bash y se leen del entorno.
-4. **Entregables:** Genera `docker-compose.yml`, `config.env`, `README.md` (formato "Cheat Sheet" minimalista de 30 líneas máximo), y el script orquestador `<slug>.sh`.
+4. **Entregables:** Genera `docker-compose.yml`, `config.env`, `README.md` (formato "Cheat Sheet" minimalista de 30 líneas máximo), el script orquestador `<slug>.sh`, y el archivo de auto-registro `.registry`.
 5. **Etiquetas (Tags):** NUNCA inventes o deduzcas tags de imagen. Si dudas de la existencia exacta de un hash/etiqueta, usa `latest`. Tags falsos provocan descargas silently-failed y desencadenan estado de contenedor `missing`.
 6. **Macro-Services (Resolución Dinámica):** Para despliegues complejos compuestos por múltiples contenedores acoplados (ej: Supabase, Nextcloud), DEBES realizar una búsqueda web previa para localizar el `.env` o el `docker-compose.yml` oficial maestro de los fabricantes. Tras la investigación, **debes extraer las tags de las versiones probadas y declararlas explícitamente como variables en el `config.env`** generador, usándolas en tu `.yml` como `$MI_VERSION`. Así mantienes la coherencia de variables nativa del proyecto.
 7. **Sub-Volumes (Integridad Arquitectónica):** NO inventes ni resumas "docker-compose.yml" de Macro-Stacks (ej: Supabase) ignorando sus volúmenes, carpetas y scripts de inicialización de Base de Datos. Si identificas que el ecosistema oficial reposa sobre directorios de volumen nativos (como carpetas de scripts SQL `init-db.d/`), **DEBES generar comandos en `do_install` que descarguen esos directorios (ej. con un clone sparse de git o wget iterativo) al `$INSTALL_DIR`** de forma previa a la instanciación para evitar que fallen los contenedores dependientes por permisos de esquema o tablas inexistentes.
@@ -217,7 +217,7 @@ else
 fi
 ```
 
-Por último, devuélveme la línea de registro exacta para copiar/pegar en mi menú `deploy.sh` bajo la sintaxis completa de 6 campos (incluyendo el endpoint dinámico `{IP}`):
+Por último, genera el archivo `.registry` y devuélveme la línea de registro exacta para el menú `deploy.sh` bajo la sintaxis completa de 6 campos (incluyendo el endpoint dinámico `{IP}`):
 `"Nombre|projects/<slug>/<slug>.sh|/opt/<slug>|<main_container>|Descripción breve|Servicio: {IP}:<PORT>"`
 
 ---
