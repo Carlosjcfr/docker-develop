@@ -121,7 +121,7 @@ do_start() { systemctl --user start container-anytype.service; }
 do_update() { do_install; } # Alias for re-run installation logic
 
 root_protection
-check_dependencies curl podman-compose git
+check_dependencies curl podman-compose git openssl
 parse_args "$@"
 
 if [ -n "${CMD_ACTION:-}" ]; then
