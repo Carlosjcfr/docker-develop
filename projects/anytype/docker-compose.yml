@@ -1,0 +1,85 @@
+services:
+  # Generators (Rule 7: Essential for AnySync config)
+  generateconfig-anyconf:
+    image: ghcr.io/anyproto/any-sync-tools:${ANY_SYNC_TOOLS_VERSION}
+    container_name: any-sync-gen-anyconf
+    restart: "no"
+    volumes:
+      - ./.env:/code/.env:ro,Z
+      - ./docker-generateconfig:/code/docker-generateconfig:ro,Z
+      - ${STORAGE_DIR}:/code/storage:Z
+
+  # Infrastructure
+  mongo-1:
+    image: mongo:${MONGO_VERSION}
+    container_name: any-sync-mongo
+    restart: unless-stopped
+    command: [ "--replSet", "rs0", "--port", "27017" ]
+    volumes:
+      - ${STORAGE_DIR}/mongo-1:/data/db:Z
+    healthcheck:
+      test: [ "CMD", "mongosh", "--eval", "rs.status()" ]
+      interval: 10s
+
+  redis:
+    image: redis/redis-stack-server:${REDIS_VERSION}
+    container_name: any-sync-redis
+    restart: unless-stopped
+    volumes:
+      - ${STORAGE_DIR}/redis:/data:Z
+
+  minio:
+    image: minio/minio:${MINIO_VERSION}
+    container_name: any-sync-minio
+    restart: unless-stopped
+    command: [ "server", "/data", "--console-address", ":9001" ]
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+    volumes:
+      - ${STORAGE_DIR}/minio:/data:Z
+
+  # Any-Sync Daemons
+  any-sync-coordinator:
+    image: ghcr.io/anyproto/any-sync-coordinator:${ANY_SYNC_COORDINATOR_VERSION}
+    container_name: any-sync-coordinator
+    depends_on:
+      mongo-1:
+        condition: service_healthy
+    ports:
+      - "${ANY_SYNC_COORDINATOR_PORT}:${ANY_SYNC_COORDINATOR_PORT}"
+      - "${ANY_SYNC_COORDINATOR_QUIC_PORT}:${ANY_SYNC_COORDINATOR_QUIC_PORT}/udp"
+    volumes:
+      - ./etc/any-sync-coordinator:/etc/any-sync-coordinator:Z
+      - ${STORAGE_DIR}/networkStore/any-sync-coordinator:/networkStore:Z
+    labels:
+      dev.arcane.icon: "${ARCANE_ICON}"
+      dev.arcane.category: "${ARCANE_CATEGORY}"
+      com.docker.compose.project: "anytype"
+      com.docker.compose.project.working_dir: "/app/data/projects/anytype"
+    restart: unless-stopped
+
+  any-sync-node-1:
+    image: ghcr.io/anyproto/any-sync-node:${ANY_SYNC_NODE_VERSION}
+    container_name: any-sync-node-1
+    depends_on:
+      - any-sync-coordinator
+    ports:
+      - "${ANY_SYNC_NODE_1_PORT}:${ANY_SYNC_NODE_1_PORT}"
+      - "${ANY_SYNC_NODE_1_QUIC_PORT}:${ANY_SYNC_NODE_1_QUIC_PORT}/udp"
+      - "${ANY_SYNC_NODE_1_API_PORT}:8081"
+    volumes:
+      - ./etc/any-sync-node-1:/etc/any-sync-node-1:Z
+    restart: unless-stopped
+
+  any-sync-filenode:
+    image: ghcr.io/anyproto/any-sync-filenode:${ANY_SYNC_FILENODE_VERSION}
+    container_name: any-sync-filenode
+    depends_on:
+      - any-sync-coordinator
+    ports:
+      - "${ANY_SYNC_FILENODE_PORT}:${ANY_SYNC_FILENODE_PORT}"
+      - "${ANY_SYNC_FILENODE_QUIC_PORT}:${ANY_SYNC_FILENODE_QUIC_PORT}/udp"
+    volumes:
+      - ./etc/any-sync-filenode:/etc/any-sync-filenode:Z
+    restart: unless-stopped
