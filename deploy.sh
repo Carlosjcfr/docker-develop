@@ -36,6 +36,7 @@ REGISTRY=(
     "Arcane|projects/arcane/arcane.sh|/opt/arcane|arcane|Container management UI|UI: {IP}:3552"
     "Caddy Proxy + Manager|projects/caddy-proxy-manager/caddy.sh|/opt/caddy|caddy|Reverse proxy with TLS + web management UI|Proxy: {IP}:80 / {IP}:443, Manager: {IP}:8080"
     "Insforge|projects/insforge/insforge.sh|/opt/insforge|insforge-app|Backend Development Platform for AI Agents|Web: {IP}:7130, UI: {IP}:7131, Auth: {IP}:7132"
+    "n8n|projects/n8n/n8n.sh|/opt/n8n|n8n|Workflow Automation platform|Servicio: {IP}:5678"
     "Opencloud|projects/opencloud/opencloud.sh|/opt/opencloud|opencloud|Privacy-friendly cloud platform|Cloud: {IP}:9200"
     "Supabase|projects/supabase/supabase.sh|/opt/supabase|studio|Open source Firebase alternative|Studio: {IP}:3000, API: {IP}:8000, DB: {IP}:5432"
     "Windmill|projects/windmill/windmill.sh|/opt/windmill|windmill_server|Plataforma analítica y de workflows para desarrolladores|Servicio: {IP}:8000"
