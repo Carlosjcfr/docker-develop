@@ -1,0 +1,46 @@
+services:
+  n8n-db:
+    image: docker.io/library/postgres:${POSTGRES_VERSION}
+    container_name: n8n-db
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - ./db_data:/var/lib/postgresql/data:Z
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -h localhost -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  n8n:
+    image: docker.io/n8nio/n8n:${N8N_VERSION}
+    container_name: n8n
+    restart: always
+    environment:
+      - DB_TYPE=postgresdb
+      - DB_POSTGRESDB_HOST=n8n-db
+      - DB_POSTGRESDB_PORT=5432
+      - DB_POSTGRESDB_DATABASE=${POSTGRES_DB}
+      - DB_POSTGRESDB_USER=${POSTGRES_USER}
+      - DB_POSTGRESDB_PASSWORD=${POSTGRES_PASSWORD}
+      - N8N_ENCRYPTION_KEY=${N8N_ENCRYPTION_KEY}
+      - N8N_USER_MANAGEMENT_JWT_SECRET=${N8N_USER_MANAGEMENT_JWT_SECRET}
+      - N8N_HOST=${HOST_IP}
+      - N8N_PORT=5678
+      - N8N_PROTOCOL=http
+      - NODE_ENV=production
+      - WEBHOOK_URL=http://${HOST_IP}:${N8N_PORT}/
+    ports:
+      - "${N8N_PORT}:5678"
+    volumes:
+      - ./n8n_data:/home/node/.n8n:Z
+    depends_on:
+      n8n-db:
+        condition: service_healthy
+    labels:
+      - "dev.arcane.icon=${ARCANE_ICON}"
+      - "dev.arcane.category=${ARCANE_CATEGORY}"
+      - "com.docker.compose.project=n8n"
+      - "com.docker.compose.project.working_dir=/app/data/projects/n8n"
