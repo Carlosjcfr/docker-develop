@@ -33,6 +33,7 @@ REPO_BASE="${REPO_BASE:-https://raw.githubusercontent.com/Carlosjcfr/docker-deve
 HOST_IP=$(hostname -I | awk '{print $1}')
 
 REGISTRY=(
+    "AFFiNE|projects/affine/affine.sh|/opt/affine|affine_server|The Next-Gen Knowledge Base|Servicio: {IP}:3010"
     "Arcane|projects/arcane/arcane.sh|/opt/arcane|arcane|Container management UI|UI: {IP}:3552"
     "Caddy Proxy + Manager|projects/caddy-proxy-manager/caddy.sh|/opt/caddy|caddy|Reverse proxy with TLS + web management UI|Proxy: {IP}:80 / {IP}:443, Manager: {IP}:8080"
     "GitLab|projects/gitlab/gitlab.sh|/opt/gitlab|gitlab|Plataforma DevOps completa (Git, CI/CD)|Servicio: {IP}:8929"
