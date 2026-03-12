@@ -1,0 +1,211 @@
+version: "3.9"
+
+services:
+  web-server:
+    image: ${APITABLE_REGISTRY}/web-server:${APITABLE_VERSION}
+    container_name: airtable-web
+    restart: always
+    expose:
+      - "8080"
+    env_file:
+      - ".env"
+    networks:
+      - airtable-net
+
+  imageproxy-server:
+    image: ${APITABLE_REGISTRY}/imageproxy-server:${APITABLE_VERSION}
+    container_name: airtable-imageproxy
+    restart: always
+    expose:
+      - "8080"
+    environment:
+      - TZ=${TIMEZONE}
+      - BASEURL=${AWS_ENDPOINT:-http://airtable-minio:9000}
+    networks:
+      - airtable-net
+
+  backend-server:
+    image: ${APITABLE_REGISTRY}/backend-server:${APITABLE_VERSION}
+    container_name: airtable-backend
+    restart: always
+    env_file:
+      - ".env"
+    expose:
+      - "8081"
+    environment:
+      - TZ=${TIMEZONE}
+      - DEFAULT_TIME_ZONE=${TIMEZONE}
+    networks:
+      - airtable-net
+    depends_on:
+      init-db:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sS 'http://localhost:8081' || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+
+  room-server:
+    image: ${APITABLE_REGISTRY}/room-server:${APITABLE_VERSION}
+    container_name: airtable-room
+    restart: always
+    expose:
+      - "3333"
+      - "3001"
+    env_file:
+      - ".env"
+    environment:
+      - TZ=${TIMEZONE}
+      - NODE_ENV=${ENV}
+      - NODE_OPTIONS=--max-old-space-size=2048
+    networks:
+      - airtable-net
+    depends_on:
+      mysql:
+        condition: service_healthy
+
+  databus-server:
+    image: ${APITABLE_REGISTRY}/databus-server:${APITABLE_VERSION}
+    container_name: airtable-databus
+    restart: always
+    expose:
+      - "8625"
+    env_file:
+      - ".env"
+    environment:
+      - TZ=${TIMEZONE}
+    networks:
+      - airtable-net
+    depends_on:
+      mysql:
+        condition: service_healthy
+
+  gateway:
+    image: ${APITABLE_REGISTRY}/gateway:${APITABLE_VERSION}
+    container_name: airtable-gateway
+    restart: always
+    ports:
+      - ${AIRTABLE_PORT}:80
+    environment:
+      - TZ=${TIMEZONE}
+    labels:
+      - "dev.arcane.icon=${ARCANE_ICON}"
+      - "dev.arcane.category=${ARCANE_CATEGORY}"
+      - "com.docker.compose.project=airtable"
+      - "com.docker.compose.project.working_dir=/app/data/projects/airtable"
+    networks:
+      - airtable-net
+    depends_on:
+      web-server:
+        condition: service_started
+      backend-server:
+        condition: service_healthy
+
+  minio:
+    image: ${IMAGE_MINIO}
+    container_name: airtable-minio
+    restart: always
+    command: server --console-address ":9001" /data
+    expose:
+      - "9000"
+      - "9001"
+    volumes:
+      - ./data/minio:/data:Z
+    environment:
+      - MINIO_ROOT_USER=${MINIO_ACCESS_KEY}
+      - MINIO_ROOT_PASSWORD=${MINIO_SECRET_KEY}
+      - TZ=${TIMEZONE}
+    networks:
+      - airtable-net
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:9000/minio/health/live || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+
+  redis:
+    image: ${IMAGE_REDIS}
+    container_name: airtable-redis
+    restart: always
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD}
+    expose:
+      - "6379"
+    volumes:
+      - ./data/redis:/data:Z
+    environment:
+      - TZ=${TIMEZONE}
+    networks:
+      - airtable-net
+
+  mysql:
+    image: ${IMAGE_MYSQL}
+    container_name: airtable-mysql
+    restart: always
+    volumes:
+      - ./data/mysql:/var/lib/mysql:Z
+    expose:
+      - "3306"
+    environment:
+      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
+      - MYSQL_DATABASE=${MYSQL_DATABASE}
+      - TZ=${TIMEZONE}
+    command: --default-authentication-plugin=mysql_native_password --character-set-server=utf8mb4 --collation-server=utf8mb4_general_ci
+    networks:
+      - airtable-net
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-p${MYSQL_ROOT_PASSWORD}"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+
+  rabbitmq:
+    image: ${IMAGE_RABBITMQ}
+    container_name: airtable-rabbitmq
+    restart: always
+    volumes:
+      - ./data/rabbitmq:/var/lib/rabbitmq:Z
+    expose:
+      - "5672"
+      - "15672"
+    environment:
+      - RABBITMQ_DEFAULT_USER=${RABBITMQ_USERNAME}
+      - RABBITMQ_DEFAULT_PASS=${RABBITMQ_PASSWORD}
+    networks:
+      - airtable-net
+
+  init-db:
+    image: ${APITABLE_REGISTRY}/init-db:${APITABLE_VERSION}
+    container_name: airtable-init-db
+    environment:
+      - TZ=${TIMEZONE}
+      - DB_HOST=airtable-mysql
+      - DB_PORT=3306
+      - DB_NAME=${MYSQL_DATABASE}
+      - DB_USERNAME=root
+      - DB_PASSWORD=${MYSQL_ROOT_PASSWORD}
+      - DATABASE_TABLE_PREFIX=${DATABASE_TABLE_PREFIX}
+      - ACTION=update
+    networks:
+      - airtable-net
+    depends_on:
+      mysql:
+        condition: service_healthy
+
+  init-appdata:
+    image: ${APITABLE_REGISTRY}/init-appdata:${APITABLE_VERSION}
+    container_name: airtable-init-appdata
+    env_file:
+      - ".env"
+    networks:
+      - airtable-net
+    depends_on:
+      mysql:
+        condition: service_healthy
+      init-db:
+        condition: service_completed_successfully
+
+networks:
+  airtable-net:
+    name: airtable_default
+    driver: bridge
