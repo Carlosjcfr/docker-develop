@@ -42,6 +42,7 @@ REGISTRY=(
     "n8n|projects/n8n/n8n.sh|/opt/n8n|n8n|Workflow Automation platform|Servicio: {IP}:5678"
     "Opencloud|projects/opencloud/opencloud.sh|/opt/opencloud|opencloud|Privacy-friendly cloud platform|Cloud: {IP}:9200"
     "Supabase|projects/supabase/supabase.sh|/opt/supabase|studio|Open source Firebase alternative|Studio: {IP}:3000, API: {IP}:8000, DB: {IP}:5432"
+    "Wallos|projects/wallos/wallos.sh|/opt/wallos|wallos|Wallos is a personal finance management tool.|Servicio: {IP}:8282"
     "Windmill|projects/windmill/windmill.sh|/opt/windmill|windmill_server|Plataforma analítica y de workflows para desarrolladores|Servicio: {IP}:8000"
 )
 
