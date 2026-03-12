@@ -35,6 +35,7 @@ HOST_IP=$(hostname -I | awk '{print $1}')
 REGISTRY=(
     "AFFiNE|projects/affine/affine.sh|/opt/affine|affine_server|The Next-Gen Knowledge Base|Servicio: {IP}:3010"
     ""Airtable|projects/airtable/airtable.sh|/opt/airtable|airtable-gateway|Advanced no-code database (Airtable-like)|Servicio: {IP}:8081""
+    "AnyType|projects/anytype/anytype.sh|/opt/anytype|any-sync-coordinator|Plataforma de conocimiento local-first cifrada|Servicio: {IP}:1004"
     "Arcane|projects/arcane/arcane.sh|/opt/arcane|arcane|Container management UI|UI: {IP}:3552"
     "Caddy Proxy + Manager|projects/caddy-proxy-manager/caddy.sh|/opt/caddy|caddy|Reverse proxy with TLS + web management UI|Proxy: {IP}:80 / {IP}:443, Manager: {IP}:8080"
     "GitLab|projects/gitlab/gitlab.sh|/opt/gitlab|gitlab|Plataforma DevOps completa (Git, CI/CD)|Servicio: {IP}:8929"
