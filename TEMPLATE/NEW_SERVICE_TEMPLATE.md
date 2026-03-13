@@ -52,20 +52,29 @@ load_configuration() {
 }
 
 generate_runtime_env() {
+    log "Generating runtime .env file..."
     local OLD_UMASK
     OLD_UMASK=$(umask)
     umask 177
+    
+    # CRITICAL: Every variable used in docker-compose.yml (especially VERSION tags) 
+    # MUST be explicitly added here, otherwise Podman will fail with 'invalid reference format'.
     cat <<EOF > "$INSTALL_DIR/.env"
 HOST_IP="$HOST_IP"
 PUID="$PUID"
 PGID="$PGID"
 PODMAN_SOCK="$PODMAN_SOCK"
 PROJECT_IP="$PROJECT_IP"
+
+# Service Configuration (Add every variable from config.env used in compose here)
+# EXAMPLE_VERSION="$EXAMPLE_VERSION"
+
 # Arcane metadata
 ARCANE_ICON="$ARCANE_ICON"
 ARCANE_CATEGORY="$ARCANE_CATEGORY"
 EOF
     umask "$OLD_UMASK"
+    log ".env file ready."
 }
 
 do_uninstall() {

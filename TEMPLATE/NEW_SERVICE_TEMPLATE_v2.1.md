@@ -22,6 +22,8 @@ Actúa como experto DevOps. Crea los 5 ficheros para integrar este servicio en m
 5. **Sub-Volumes & Integridad:** En servicios que dependen de carpetas de inicialización (ej. `init-db.d/`), genera comandos en `do_install` para descargar esos directorios antes de arrancar los contenedores.
 6. **Variables Críticas (Previsión de Crasheos):** Examina el `.env.example` oficial. Incluye solo los parámetros estrictamente esenciales para un arranque funcional. Evita variables opcionales o experimentales.
 7. **Nombres de Contenedor Explícitos:** Define siempre `container_name: <nombre>` en cada servicio de Compose. Sin esto, las comprobaciones de estado de nuestro framework fallarán.
+8. **Sincronización de Entorno (CRÍTICO):** Cualquier variable declarada en `config.env` que se use en `docker-compose.yml` (especialmente versiones como `${MONGO_VERSION}`) **DEBE** ser añadida explícitamente a la función `generate_runtime_env` del script `.sh`. Si olvidas añadir una versión al `.env` final, Podman fallará con el error `invalid reference format`.
+9. **Fin de Línea Unix (LF):** Todos los archivos `.sh` y `.env` deben ser guardados estrictamente con formato de fin de línea Unix (LF). El formato Windows (CRLF) causará errores sintácticos invisibles como `\r: command not found`.
 
 ### Integración con Arcane (Visibility)
 
