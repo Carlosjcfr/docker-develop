@@ -1,0 +1,1 @@
+"Nombre|projects/<slug>/<slug>.sh|/opt/<slug>|<main_container>|Descripción breve|Servicio: {IP}:<PORT>"

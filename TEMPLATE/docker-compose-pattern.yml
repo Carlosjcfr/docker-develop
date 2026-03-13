@@ -1,0 +1,12 @@
+services:
+  main-app:
+    image: ${IMAGE_TAG}
+    container_name: ${CONTAINER_NAME}
+    networks:
+      internal_net:
+        ipv4_address: ${PROJECT_IP}
+    # ... rest of config
+
+networks:
+  internal_net:
+    external: true
