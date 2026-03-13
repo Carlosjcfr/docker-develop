@@ -26,6 +26,7 @@ Actúa como experto DevOps. Crea los 5 ficheros para integrar este servicio en m
 9. **Fin de Línea Unix (LF):** Todos los archivos `.sh` y `.env` deben ser guardados estrictamente con formato de fin de línea Unix (LF). El formato Windows (CRLF) causará errores sintácticos invisibles como `\r: command not found`.
 10. **Modo de Desarrollo (Pruebas Locales):** El script debe incluir soporte para `LIB_LOCAL`. Esto permite probar cambios en los archivos locales sin necesidad de subirlos a GitHub indicando `export LIB_LOCAL=$(pwd)/lib/lib.sh`.
 11. **Investigación de Terceros (Community First):** Antes de implementar un stack complejo desde cero, el paso obligatorio es buscar "community scripts" o "all-in-one bundles" (ej: `community-scripts.org` o proyectos `aio` en GitHub). Estos suelen resolver problemas de replicación, certificados y configuración que son difíciles de orquestar manualmente.
+12. **Menú de Gestión Interactivo:** Si el servicio ya está instalado (detectado por `check_existing_installation`), el script DEBE mostrar un menú interactivo con las opciones: 1) Start, 2) Update, 3) Uninstall, 0) Cancel. Esto garantiza una experiencia de usuario consistente en todo el framework.
 
 ### Integración con Arcane (Visibility)
 
