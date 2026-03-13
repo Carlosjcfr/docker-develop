@@ -86,6 +86,10 @@ Presents a prompt to run `configure.sh` interactively if executed in a TTY termi
 
 Automatically detects the primary IPv4 address from the default route and exports it to `HOST_IP` (unless previously set).
 
+### `assign_project_ip`
+
+Finds the next available IP address in the `internal_net` (172.170.1.0/24) and exports it to `PROJECT_IP`. It automatically skips the gateway and any IPs already assigned to other containers or pods.
+
 ### `manage_credentials <install_dir> [secret...]`
 
 Reuses secrets from an existing `.env` or securely generates new 64-char hexadecimal ones, exporting them to the caller environment.

@@ -24,6 +24,10 @@ Actúa como experto DevOps. Crea los 5 ficheros para integrar este servicio en m
    - **Variables Estéticas:** Los valores de icono y categoría deben ser parametrizables desde `config.env`.
 10. **Nombres de Contenedor Explícitos (Health Checks):** Define siempre `container_name: <nombre>` debajo de cada bloque de servicio (`image: x`) en tu `docker-compose.yml`. Si no lo haces, `podman-compose` generará nombres aleatorios y las comprobaciones de estado `verify_containers_running` fracasarán en el despliegue con estatus "missing".
 11. **Auto-Registro:** Todo servicio debe incluir un archivo `.registry` en su carpeta de proyecto con la línea de registro exacta que se usará en `deploy.sh`.
+12. **One IP per Project (Networking):** Para garantizar el aislamiento y la identidad de red, cada proyecto DEBE tener una IP estática asignada dentro de la red `internal_net` (172.170.1.0/24).
+    - **Script:** Debe llamar a `assign_project_ip` antes de generar el `.env`.
+    - **Config:** La variable `PROJECT_IP` debe persistirse en el `.env` para que el `docker-compose.yml` la utilice.
+    - **Compose:** Todos los servicios del proyecto deben compartir esta IP usando la directiva `ipv4_address`.
 
 **ESQUELETO OBLIGATORIO PARA `<slug>.sh`:**
 No inventes funciones. Limítate a rellenar este exacto molde (usando variables base como `$HOST_IP` y `$PUID`):
@@ -56,6 +60,7 @@ HOST_IP="$HOST_IP"
 PUID="$PUID"
 PGID="$PGID"
 PODMAN_SOCK="$PODMAN_SOCK"
+PROJECT_IP="$PROJECT_IP"
 # Arcane metadata
 ARCANE_ICON="$ARCANE_ICON"
 ARCANE_CATEGORY="$ARCANE_CATEGORY"
@@ -148,13 +153,14 @@ print_success() {
 }
 
 # -----------------------------------------------------------------------------
-# REQUIRED ACTIONS (Añade el bloque completo para install/start/update)
+# REQUIRED ACTIONS
 # -----------------------------------------------------------------------------
 do_install() {
     download_repo_files "$REPO_RAW" config.env docker-compose.yml
     offer_interactive_mode; load_configuration; detect_host_ip
     # manage_credentials "$INSTALL_DIR" MIVAR_SECRETA
     setup_lingering_and_socket
+    assign_project_ip
     
     check_install_dir_writable "$INSTALL_DIR"
     mkdir -p "$INSTALL_DIR"
@@ -176,6 +182,13 @@ do_update() {
     offer_interactive_mode; load_configuration; detect_host_ip
     setup_lingering_and_socket
     
+    # Preserve PROJECT_IP from existing .env if it exists
+    if [ -f "$INSTALL_DIR/.env" ]; then
+        PROJECT_IP=$(grep "^PROJECT_IP=" "$INSTALL_DIR/.env" | cut -d'=' -f2- | tr -d '"' | tr -d "'")
+    else
+        assign_project_ip
+    fi
+
     generate_runtime_env
     
     cp "$INSTALL_DIR/config.env" "$INSTALL_DIR/config.env.bak" 2>/dev/null || true
@@ -236,6 +249,22 @@ if check_existing_installation "/opt/<slug>"; then
 else
     do_install
 fi
+```
+
+**DOCKER-COMPOSE.YML (Networking Pattern):**
+```yaml
+services:
+  main-app:
+    image: ${IMAGE_TAG}
+    container_name: ${CONTAINER_NAME}
+    networks:
+      internal_net:
+        ipv4_address: ${PROJECT_IP}
+    # ... rest of config
+
+networks:
+  internal_net:
+    external: true
 ```
 
 Por último, genera el archivo `.registry` y devuélveme la línea de registro exacta para el menú `deploy.sh` bajo la sintaxis completa de 6 campos (incluyendo el endpoint dinámico `{IP}`):
