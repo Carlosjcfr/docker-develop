@@ -28,6 +28,8 @@ Actúa como experto DevOps. Crea los 5 ficheros para integrar este servicio en m
     - **Script:** Debe llamar a `assign_project_ip` antes de generar el `.env`.
     - **Config:** La variable `PROJECT_IP` debe persistirse en el `.env` para que el `docker-compose.yml` la utilice.
     - **Compose:** Todos los servicios del proyecto deben compartir esta IP usando la directiva `ipv4_address`.
+13. **Modo de Desarrollo (Pruebas Locales):** El script debe incluir soporte para `LIB_LOCAL`. Esto permite probar cambios en los archivos locales sin necesidad de subirlos a GitHub indicando `export LIB_LOCAL=$(pwd)/lib/lib.sh`.
+14. **Investigación de Terceros (Community First):** Antes de implementar un stack complejo desde cero, el paso obligatorio es buscar "community scripts" o "all-in-one bundles" (ej: `community-scripts.org` o proyectos `aio` en GitHub). Estos suelen resolver problemas de replicación, certificados y configuración que son difíciles de orquestar manualmente.
 
 **ESQUELETO OBLIGATORIO PARA `<slug>.sh`:**
 No inventes funciones. Limítate a rellenar este exacto molde (usando variables base como `$HOST_IP` y `$PUID`):
@@ -40,7 +42,11 @@ GIT_BRANCH="${GIT_BRANCH:-main}"
 REPO_BASE="${REPO_BASE:-https://raw.githubusercontent.com/Carlosjcfr/docker-develop/$GIT_BRANCH}"
 REPO_RAW="$REPO_BASE/projects/<slug>"
 # shellcheck source=lib.sh
-source <(curl -fsSL "$REPO_BASE/lib/lib.sh")
+if [[ -n "${LIB_LOCAL:-}" && -f "$LIB_LOCAL" ]]; then
+    source "$LIB_LOCAL"
+else
+    source <(curl -fsSL "$REPO_BASE/lib/lib.sh")
+fi
 
 load_configuration() {
     # shellcheck source=/dev/null
@@ -165,7 +171,21 @@ print_success() {
 # REQUIRED ACTIONS
 # -----------------------------------------------------------------------------
 do_install() {
-    download_repo_files "$REPO_RAW" config.env docker-compose.yml
+    # Development Mode: Use local files if LIB_LOCAL is active
+    if [ -z "${LIB_LOCAL:-}" ]; then
+        download_repo_files "$REPO_RAW" config.env docker-compose.yml
+    else
+        log "[DEV] LIB_LOCAL detected. Using local project files."
+        TMP_DIR=$(mktemp -d)
+        trap 'rm -rf "$TMP_DIR"' EXIT
+        # Assumes execution from root or projects/<slug>
+        if [ -f "projects/<slug>/config.env" ]; then
+            cp "projects/<slug>/config.env" "projects/<slug>/docker-compose.yml" "$TMP_DIR/"
+        else
+            cp config.env docker-compose.yml "$TMP_DIR/"
+        fi
+    fi
+
     offer_interactive_mode; load_configuration; detect_host_ip
     # manage_credentials "$INSTALL_DIR" MIVAR_SECRETA
     setup_lingering_and_socket
@@ -187,7 +207,20 @@ do_start() {
 }
 
 do_update() {
-    download_repo_files "$REPO_RAW" config.env docker-compose.yml
+    # Development Mode: Use local files if LIB_LOCAL is active
+    if [ -z "${LIB_LOCAL:-}" ]; then
+        download_repo_files "$REPO_RAW" config.env docker-compose.yml
+    else
+        log "[DEV] LIB_LOCAL detected. Using local project files."
+        TMP_DIR=$(mktemp -d)
+        trap 'rm -rf "$TMP_DIR"' EXIT
+        if [ -f "projects/<slug>/config.env" ]; then
+            cp "projects/<slug>/config.env" "projects/<slug>/docker-compose.yml" "$TMP_DIR/"
+        else
+            cp config.env docker-compose.yml "$TMP_DIR/"
+        fi
+    fi
+
     offer_interactive_mode; load_configuration; detect_host_ip
     setup_lingering_and_socket
     

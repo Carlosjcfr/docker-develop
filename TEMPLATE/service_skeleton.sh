@@ -4,8 +4,16 @@ set -euo pipefail
 GIT_BRANCH="${GIT_BRANCH:-main}"
 REPO_BASE="${REPO_BASE:-https://raw.githubusercontent.com/Carlosjcfr/docker-develop/$GIT_BRANCH}"
 REPO_RAW="$REPO_BASE/projects/<slug>"
-# shellcheck source=lib.sh
-source <(curl -fsSL "$REPO_BASE/lib/lib.sh")
+# =============================================================================
+# SHARED LIBRARY (Development Mode Support)
+# =============================================================================
+
+# Set LIB_LOCAL to an absolute path to use a local copy (development only).
+if [[ -n "${LIB_LOCAL:-}" && -f "$LIB_LOCAL" ]]; then
+    source "$LIB_LOCAL"
+else
+    source <(curl -fsSL "$REPO_BASE/lib/lib.sh")
+fi
 
 load_configuration() {
     # shellcheck source=/dev/null
@@ -130,8 +138,22 @@ print_success() {
 # REQUIRED ACTIONS
 # -----------------------------------------------------------------------------
 do_install() {
-    download_repo_files "$REPO_RAW" config.env docker-compose.yml
-    offer_interactive_mode; load_configuration; detect_host_ip
+    # Development Mode: Use local files if LIB_LOCAL is active
+    if [ -z "${LIB_LOCAL:-}" ]; then
+        download_repo_files "$REPO_RAW" config.env docker-compose.yml
+    else
+        log "[DEV] LIB_LOCAL detected. Using local project files."
+        TMP_DIR=$(mktemp -d)
+        trap 'rm -rf "$TMP_DIR"' EXIT
+        # Assumes execution from root or projects/<slug>
+        if [ -f "projects/<slug>/config.env" ]; then
+            cp "projects/<slug>/config.env" "projects/<slug>/docker-compose.yml" "$TMP_DIR/"
+        else
+            cp config.env docker-compose.yml "$TMP_DIR/"
+        fi
+    fi
+
+    load_configuration; detect_host_ip
     # manage_credentials "$INSTALL_DIR" MIVAR_SECRETA
     setup_lingering_and_socket
     assign_project_ip
@@ -152,13 +174,26 @@ do_start() {
 }
 
 do_update() {
-    download_repo_files "$REPO_RAW" config.env docker-compose.yml
-    offer_interactive_mode; load_configuration; detect_host_ip
+    # Development Mode: Use local files if LIB_LOCAL is active
+    if [ -z "${LIB_LOCAL:-}" ]; then
+        download_repo_files "$REPO_RAW" config.env docker-compose.yml
+    else
+        log "[DEV] LIB_LOCAL detected. Using local project files."
+        TMP_DIR=$(mktemp -d)
+        trap 'rm -rf "$TMP_DIR"' EXIT
+        if [ -f "projects/<slug>/config.env" ]; then
+            cp "projects/<slug>/config.env" "projects/<slug>/docker-compose.yml" "$TMP_DIR/"
+        else
+            cp config.env docker-compose.yml "$TMP_DIR/"
+        fi
+    fi
+
+    load_configuration; detect_host_ip
     setup_lingering_and_socket
     
     # Preserve PROJECT_IP from existing .env if it exists
     if [ -f "$INSTALL_DIR/.env" ]; then
-        PROJECT_IP=$(grep "^PROJECT_IP=" "$INSTALL_DIR/.env" | cut -d'=' -f2- | tr -d '"' | tr -d "'")
+        PROJECT_IP=$(grep "^PROJECT_IP=" "$INSTALL_DIR/.env" | cut -d'=' -f2- | tr -d '"' | tr -d "'" | head -1)
     else
         assign_project_ip
     fi
