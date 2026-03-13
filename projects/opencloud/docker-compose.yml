@@ -19,6 +19,9 @@ services:
       - ./config/banned-password-list.txt:/etc/opencloud/banned-password-list.txt:Z
       - ./data/config:/etc/opencloud:Z
       - ./data/storage:/var/lib/opencloud:Z
+    networks:
+      internal_net:
+        ipv4_address: ${PROJECT_IP}
     labels:
       - "dev.arcane.icon=${ARCANE_ICON}"
       - "dev.arcane.category=${ARCANE_CATEGORY}"
@@ -27,5 +30,5 @@ services:
     restart: always
 
 networks:
-  default:
-    name: opencloud-net
+  internal_net:
+    external: true

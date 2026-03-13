@@ -29,6 +29,10 @@ services:
       # Host directory for Compose stacks/projects managed by Arcane.
       - ./projects:/app/data/projects:Z
 
+    networks:
+      internal_net:
+        ipv4_address: ${PROJECT_IP}
+
     environment:
       # --- Core ---
       - APP_URL=${APP_URL}
@@ -60,3 +64,7 @@ services:
       # --- Agent Mode (optional) ---
       - AGENT_MODE=${AGENT_MODE:-false}
       - AGENT_TOKEN=${AGENT_TOKEN:-}
+
+networks:
+  internal_net:
+    external: true

@@ -12,8 +12,15 @@ services:
     volumes:
       - ./db:/var/www/html/db:Z
       - ./logos:/var/www/html/images/uploads/logos:Z
+    networks:
+      internal_net:
+        ipv4_address: ${PROJECT_IP}
     labels:
       - "dev.arcane.icon=${ARCANE_ICON}"
       - "dev.arcane.category=${ARCANE_CATEGORY}"
       - "com.docker.compose.project=wallos"
       - "com.docker.compose.project.working_dir=/app/data/projects/wallos"
+
+networks:
+  internal_net:
+    external: true

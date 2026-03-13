@@ -42,6 +42,7 @@ INITIAL_ADMIN_PASSWORD="$INITIAL_ADMIN_PASSWORD"
 # Arcane metadata
 ARCANE_ICON="$ARCANE_ICON"
 ARCANE_CATEGORY="$ARCANE_CATEGORY"
+PROJECT_IP="$PROJECT_IP"
 EOF
     umask "$OLD_UMASK"
 }
@@ -134,6 +135,7 @@ do_install() {
     
     manage_credentials "$INSTALL_DIR" INITIAL_ADMIN_PASSWORD
     setup_lingering_and_socket
+    assign_project_ip
     
     check_install_dir_writable "$INSTALL_DIR"
     mkdir -p "$INSTALL_DIR/config" "$INSTALL_DIR/data"
@@ -159,6 +161,13 @@ do_update() {
     download_repo_files "$REPO_RAW" config.env docker-compose.yml
     offer_interactive_mode; load_configuration; detect_host_ip
     setup_lingering_and_socket
+    
+    # Preserve PROJECT_IP from existing .env if it exists
+    if [ -f "$INSTALL_DIR/.env" ]; then
+        PROJECT_IP=$(grep "^PROJECT_IP=" "$INSTALL_DIR/.env" | cut -d'=' -f2- | tr -d '"' | tr -d "'")
+    else
+        assign_project_ip
+    fi
     
     generate_runtime_env
     

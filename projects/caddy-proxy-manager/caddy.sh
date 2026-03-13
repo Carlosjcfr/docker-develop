@@ -98,6 +98,7 @@ HOST_IP="$HOST_IP"
 PUID="$PUID"
 PGID="$PGID"
 PODMAN_SOCK="$PODMAN_SOCK"
+PROJECT_IP="$PROJECT_IP"
 
 # --- Caddy Proxy ---
 CADDY_VERSION="$CADDY_VERSION"
@@ -224,6 +225,7 @@ do_install() {
     detect_host_ip
     manage_credentials "$INSTALL_DIR" JWT_SECRET
     setup_lingering_and_socket
+    assign_project_ip
     enable_privileged_ports
     prepare_directories
     generate_runtime_env
@@ -264,6 +266,14 @@ do_update() {
     detect_host_ip
     manage_credentials "$INSTALL_DIR" JWT_SECRET
     setup_lingering_and_socket
+    
+    # Preserve PROJECT_IP from existing .env if it exists
+    if [ -f "$INSTALL_DIR/.env" ]; then
+        PROJECT_IP=$(grep "^PROJECT_IP=" "$INSTALL_DIR/.env" | cut -d'=' -f2- | tr -d '"' | tr -d "'")
+    else
+        assign_project_ip
+    fi
+
     enable_privileged_ports
     prepare_directories
     generate_runtime_env

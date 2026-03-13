@@ -24,8 +24,15 @@ services:
       - ./config:/etc/gitlab:Z
       - ./logs:/var/log/gitlab:Z
       - ./data:/var/opt/gitlab:Z
+    networks:
+      internal_net:
+        ipv4_address: ${PROJECT_IP}
     labels:
       - "dev.arcane.icon=${ARCANE_ICON}"
       - "dev.arcane.category=${ARCANE_CATEGORY}"
       - "com.docker.compose.project=gitlab"
       - "com.docker.compose.project.working_dir=/app/data/projects/gitlab"
+
+networks:
+  internal_net:
+    external: true

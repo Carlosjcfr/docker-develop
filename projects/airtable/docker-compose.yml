@@ -10,7 +10,7 @@ services:
     env_file:
       - ".env"
     networks:
-      - airtable-net
+      - internal_net
 
   imageproxy-server:
     image: ${APITABLE_REGISTRY}/imageproxy-server:${APITABLE_VERSION}
@@ -22,7 +22,7 @@ services:
       - TZ=${TIMEZONE}
       - BASEURL=${AWS_ENDPOINT:-http://airtable-minio:9000}
     networks:
-      - airtable-net
+      - internal_net
 
   backend-server:
     image: ${APITABLE_REGISTRY}/backend-server:${APITABLE_VERSION}
@@ -36,7 +36,7 @@ services:
       - TZ=${TIMEZONE}
       - DEFAULT_TIME_ZONE=${TIMEZONE}
     networks:
-      - airtable-net
+      - internal_net
     depends_on:
       init-db:
         condition: service_completed_successfully
@@ -60,7 +60,7 @@ services:
       - NODE_ENV=${ENV}
       - NODE_OPTIONS=--max-old-space-size=2048
     networks:
-      - airtable-net
+      - internal_net
     depends_on:
       mysql:
         condition: service_healthy
@@ -76,7 +76,7 @@ services:
     environment:
       - TZ=${TIMEZONE}
     networks:
-      - airtable-net
+      - internal_net
     depends_on:
       mysql:
         condition: service_healthy
@@ -95,7 +95,8 @@ services:
       - "com.docker.compose.project=airtable"
       - "com.docker.compose.project.working_dir=/app/data/projects/airtable"
     networks:
-      - airtable-net
+      internal_net:
+        ipv4_address: ${PROJECT_IP}
     depends_on:
       web-server:
         condition: service_started
@@ -117,7 +118,7 @@ services:
       - MINIO_ROOT_PASSWORD=${MINIO_SECRET_KEY}
       - TZ=${TIMEZONE}
     networks:
-      - airtable-net
+      - internal_net
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://localhost:9000/minio/health/live || exit 1"]
       interval: 10s
@@ -136,7 +137,7 @@ services:
     environment:
       - TZ=${TIMEZONE}
     networks:
-      - airtable-net
+      - internal_net
 
   mysql:
     image: ${IMAGE_MYSQL}
@@ -152,7 +153,7 @@ services:
       - TZ=${TIMEZONE}
     command: --default-authentication-plugin=mysql_native_password --character-set-server=utf8mb4 --collation-server=utf8mb4_general_ci
     networks:
-      - airtable-net
+      - internal_net
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-p${MYSQL_ROOT_PASSWORD}"]
       interval: 10s
@@ -172,7 +173,7 @@ services:
       - RABBITMQ_DEFAULT_USER=${RABBITMQ_USERNAME}
       - RABBITMQ_DEFAULT_PASS=${RABBITMQ_PASSWORD}
     networks:
-      - airtable-net
+      - internal_net
 
   init-db:
     image: ${APITABLE_REGISTRY}/init-db:${APITABLE_VERSION}
@@ -187,7 +188,7 @@ services:
       - DATABASE_TABLE_PREFIX=${DATABASE_TABLE_PREFIX}
       - ACTION=update
     networks:
-      - airtable-net
+      - internal_net
     depends_on:
       mysql:
         condition: service_healthy
@@ -198,7 +199,7 @@ services:
     env_file:
       - ".env"
     networks:
-      - airtable-net
+      - internal_net
     depends_on:
       mysql:
         condition: service_healthy
@@ -206,6 +207,5 @@ services:
         condition: service_completed_successfully
 
 networks:
-  airtable-net:
-    name: airtable_default
-    driver: bridge
+  internal_net:
+    external: true

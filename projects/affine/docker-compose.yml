@@ -26,6 +26,9 @@ services:
     volumes:
       - ./data/config:/root/.affine/config:Z
       - ./data/storage:/root/.affine/storage:Z
+    networks:
+      internal_net:
+        ipv4_address: ${PROJECT_IP}
     depends_on:
       affine_db:
         condition: service_healthy
@@ -47,6 +50,8 @@ services:
       - POSTGRES_DB=${DB_NAME}
     volumes:
       - ./data/postgres:/var/lib/postgresql/data:Z
+    networks:
+      - internal_net
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
       interval: 10s
@@ -59,3 +64,9 @@ services:
     restart: unless-stopped
     volumes:
       - ./data/redis:/data:Z
+    networks:
+      - internal_net
+
+networks:
+  internal_net:
+    external: true

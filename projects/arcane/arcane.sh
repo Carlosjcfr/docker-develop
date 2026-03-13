@@ -99,6 +99,7 @@ PGID="$PGID"
 APP_PORT="$APP_PORT"
 APP_URL="http://$HOST_IP:$APP_PORT"
 PODMAN_SOCK="$PODMAN_SOCK"
+PROJECT_IP="$PROJECT_IP"
 ENCRYPTION_KEY="$ENCRYPTION_KEY"
 JWT_SECRET="$JWT_SECRET"
 
@@ -209,6 +210,7 @@ do_install() {
     offer_interactive_mode
     load_configuration
     detect_host_ip
+    assign_project_ip
     manage_credentials "$INSTALL_DIR" ENCRYPTION_KEY JWT_SECRET
     setup_lingering_and_socket
     prepare_directories
@@ -251,6 +253,14 @@ do_update() {
     offer_interactive_mode
     load_configuration
     detect_host_ip
+
+    # Preserve PROJECT_IP from existing .env if it exists
+    if [ -f "$INSTALL_DIR/.env" ]; then
+        PROJECT_IP=$(grep "^PROJECT_IP=" "$INSTALL_DIR/.env" | cut -d'=' -f2- | tr -d '"' | tr -d "'")
+    else
+        assign_project_ip
+    fi
+
     manage_credentials "$INSTALL_DIR" ENCRYPTION_KEY JWT_SECRET
     setup_lingering_and_socket
     prepare_directories

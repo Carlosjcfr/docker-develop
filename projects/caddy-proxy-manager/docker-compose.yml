@@ -49,7 +49,9 @@ services:
       - CADDY_ADMIN=0.0.0.0:2019
 
     networks:
-      - caddy_net
+      internal_net:
+        ipv4_address: ${PROJECT_IP}
+      caddy_net:
 
   # ── CaddyManager Backend (API) ─────────────────────────────────────────────
   caddymanager-backend:
@@ -95,6 +97,7 @@ services:
       - caddy
 
     networks:
+      - internal_net
       - caddy_net
 
   # ── CaddyManager Frontend (Web UI) ─────────────────────────────────────────
@@ -116,12 +119,15 @@ services:
       - caddymanager-backend
 
     networks:
+      - internal_net
       - caddy_net
 
 # ── Networks ───────────────────────────────────────────────────────────────────
 networks:
   caddy_net:
     driver: bridge
+  internal_net:
+    external: true
 
 # ── Volumes ────────────────────────────────────────────────────────────────────
 volumes:

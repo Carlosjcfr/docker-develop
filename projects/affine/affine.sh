@@ -25,6 +25,7 @@ HOST_IP="$HOST_IP"
 PUID="$PUID"
 PGID="$PGID"
 PODMAN_SOCK="$PODMAN_SOCK"
+PROJECT_IP="$PROJECT_IP"
 # Versions
 AFFINE_VERSION="$AFFINE_VERSION"
 POSTGRES_VERSION="$POSTGRES_VERSION"
@@ -150,6 +151,7 @@ do_install() {
     fi
 
     setup_lingering_and_socket
+    assign_project_ip
     
     check_install_dir_writable "$INSTALL_DIR"
     mkdir -p "$INSTALL_DIR"
@@ -170,6 +172,13 @@ do_update() {
     download_repo_files "$REPO_RAW" config.env docker-compose.yml
     offer_interactive_mode; load_configuration; detect_host_ip
     setup_lingering_and_socket
+    
+    # Preserve PROJECT_IP from existing .env if it exists
+    if [ -f "$INSTALL_DIR/.env" ]; then
+        PROJECT_IP=$(grep "^PROJECT_IP=" "$INSTALL_DIR/.env" | cut -d'=' -f2- | tr -d '"' | tr -d "'")
+    else
+        assign_project_ip
+    fi
     
     # Persist existing secrets
     if [ -f "$INSTALL_DIR/config.env" ]; then

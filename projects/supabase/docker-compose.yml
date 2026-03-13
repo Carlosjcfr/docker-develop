@@ -25,6 +25,8 @@ services:
       - ./volumes/db/logs.sql:/docker-entrypoint-initdb.d/migrations/99-logs.sql:Z
       - ./volumes/db/pooler.sql:/docker-entrypoint-initdb.d/migrations/99-pooler.sql:Z
       - supabase_db_data:/var/lib/postgresql/data:Z
+    networks:
+      - internal_net
 
   supabase-studio:
     container_name: supabase-studio
@@ -37,6 +39,8 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       SUPABASE_URL: http://${HOST_IP}:${KONG_PORT}
       SUPABASE_REST_URL: http://${HOST_IP}:${KONG_PORT}/rest/v1/
+    networks:
+      - internal_net
 
   supabase-auth:
     container_name: supabase-auth
@@ -50,6 +54,8 @@ services:
       GOTRUE_SITE_URL: http://${HOST_IP}:${STUDIO_PORT}
       GOTRUE_JWT_SECRET: ${JWT_SECRET}
       API_EXTERNAL_URL: http://${HOST_IP}:${KONG_PORT}
+    networks:
+      - internal_net
 
   supabase-rest:
     container_name: supabase-rest
@@ -63,6 +69,8 @@ services:
       PGRST_DB_USE_LEGACY_GUCS: "false"
       PGRST_APP_SETTINGS_JWT_SECRET: ${JWT_SECRET}
       PGRST_APP_SETTINGS_JWT_EXP: ${JWT_EXPIRY}
+    networks:
+      - internal_net
 
   supabase-realtime:
     container_name: supabase-realtime
@@ -86,6 +94,8 @@ services:
       SEED_SELF_HOST: "true"
       RUN_JANITOR: "true"
       DISABLE_HEALTHCHECK_LOGGING: "true"
+    networks:
+      - internal_net
 
   supabase-meta:
     container_name: supabase-meta
@@ -97,6 +107,8 @@ services:
       PG_META_DB_NAME: postgres
       PG_META_DB_USER: supabase_admin
       PG_META_DB_PASSWORD: ${POSTGRES_PASSWORD}
+    networks:
+      - internal_net
 
   supabase-storage:
     container_name: supabase-storage
@@ -112,6 +124,8 @@ services:
       PGRST_JWT_SECRET: ${JWT_SECRET}
     volumes:
       - supabase_storage_data:/var/lib/storage:Z
+    networks:
+      - internal_net
 
   supabase-kong:
     container_name: supabase-kong
@@ -126,6 +140,13 @@ services:
       KONG_PLUGINS: request-transformer,cors,key-auth,acl,basic-auth
     volumes:
       - ./kong.yml:/var/lib/kong/kong.yml:Z
+    networks:
+      internal_net:
+        ipv4_address: ${PROJECT_IP}
+
+networks:
+  internal_net:
+    external: true
 
 volumes:
   supabase_db_data:

@@ -25,6 +25,8 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    networks:
+      - internal_net
     logging: *default-logging
 
   windmill_server:
@@ -45,6 +47,9 @@ services:
         condition: service_healthy
     volumes:
       - worker_logs:/tmp/windmill/logs:Z
+    networks:
+      internal_net:
+        ipv4_address: ${PROJECT_IP}
     labels:
       - dev.arcane.icon=${ARCANE_ICON}
       - dev.arcane.category=${ARCANE_CATEGORY}
@@ -74,6 +79,8 @@ services:
     volumes:
       - worker_dependency_cache:/tmp/windmill/cache:Z
       - worker_logs:/tmp/windmill/logs:Z
+    networks:
+      - internal_net
     logging: *default-logging
 
   windmill_worker_native:
@@ -99,6 +106,8 @@ services:
         condition: service_healthy
     volumes:
       - worker_logs:/tmp/windmill/logs:Z
+    networks:
+      - internal_net
     logging: *default-logging
 
   windmill_extra:
@@ -120,7 +129,13 @@ services:
       - WINDMILL_BASE_URL=http://windmill_server:8000
     volumes:
       - lsp_cache:/pyls/.cache:Z
+    networks:
+      - internal_net
     logging: *default-logging
+
+networks:
+  internal_net:
+    external: true
 
 volumes:
   db_data:

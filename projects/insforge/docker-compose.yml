@@ -11,10 +11,8 @@ services:
       - ENCRYPTION_KEY=${ENCRYPTION_KEY}
     volumes:
       - postgres-data:/var/lib/postgresql/data:Z
-    ports:
-      - "5432:5432"
     networks:
-      - insforge-network
+      - internal_net
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
       interval: 5s
@@ -35,8 +33,6 @@ services:
       PGRST_JWT_SECRET: ${JWT_SECRET}
       PGRST_DB_CHANNEL_ENABLED: true
       PGRST_DB_CHANNEL: pgrst
-    ports:
-      - "${POSTGREST_PORT}:3000"
     depends_on:
       postgres:
         condition: service_healthy
@@ -47,7 +43,7 @@ services:
       retries: 5
       start_period: 10s
     networks:
-      - insforge-network
+      - internal_net
     labels:
       - "com.docker.compose.project=insforge"
 
@@ -89,7 +85,8 @@ services:
       - storage-data:/insforge-storage:Z
       - insforge-logs:/insforge-logs:Z
     networks:
-      - insforge-network
+      internal_net:
+        ipv4_address: ${PROJECT_IP}
     labels:
       - "dev.arcane.icon=${ARCANE_ICON}"
       - "dev.arcane.category=${ARCANE_CATEGORY}"
@@ -127,7 +124,7 @@ services:
       start_period: 15s
     restart: unless-stopped
     networks:
-      - insforge-network
+      - internal_net
     labels:
       - "com.docker.compose.project=insforge"
 
@@ -142,5 +139,5 @@ volumes:
     driver: local
 
 networks:
-  insforge-network:
-    driver: bridge
+  internal_net:
+    external: true

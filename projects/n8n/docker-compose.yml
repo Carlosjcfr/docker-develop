@@ -14,6 +14,14 @@ services:
       timeout: 5s
       retries: 5
 
+    networks:
+      - internal_net
+    labels:
+      - "dev.arcane.icon=${ARCANE_ICON}"
+      - "dev.arcane.category=${ARCANE_CATEGORY}"
+      - "com.docker.compose.project=n8n"
+      - "com.docker.compose.project.working_dir=/app/data/projects/n8n"
+
   n8n:
     image: docker.io/n8nio/n8n:${N8N_VERSION}
     container_name: n8n
@@ -39,8 +47,15 @@ services:
     depends_on:
       n8n-db:
         condition: service_healthy
+    networks:
+      internal_net:
+        ipv4_address: ${PROJECT_IP}
     labels:
       - "dev.arcane.icon=${ARCANE_ICON}"
       - "dev.arcane.category=${ARCANE_CATEGORY}"
       - "com.docker.compose.project=n8n"
       - "com.docker.compose.project.working_dir=/app/data/projects/n8n"
+
+networks:
+  internal_net:
+    external: true
