@@ -130,8 +130,18 @@ do_install() {
         log "[DEV] LIB_LOCAL detected. Using local AnyType files."
         TMP_DIR=$(mktemp -d)
         trap 'rm -rf "$TMP_DIR"' EXIT
+        
         SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-        cp "$SCRIPT_DIR/config.env" "$SCRIPT_DIR/docker-compose.yml" "$TMP_DIR/"
+        REPO_ROOT="$(cd "$(dirname "$LIB_LOCAL")/.." && pwd)"
+        
+        if [ -f "$SCRIPT_DIR/config.env" ]; then
+            cp "$SCRIPT_DIR/config.env" "$SCRIPT_DIR/docker-compose.yml" "$TMP_DIR/"
+        elif [ -f "$REPO_ROOT/projects/anytype/config.env" ]; then
+            cp "$REPO_ROOT/projects/anytype/config.env" "$REPO_ROOT/projects/anytype/docker-compose.yml" "$TMP_DIR/"
+        else
+            err "Local AnyType files not found in $SCRIPT_DIR or $REPO_ROOT/projects/anytype"
+            exit 1
+        fi
     fi
 
     load_configuration; detect_host_ip
@@ -156,8 +166,18 @@ do_update() {
         log "[DEV] LIB_LOCAL detected. Using local AnyType files."
         TMP_DIR=$(mktemp -d)
         trap 'rm -rf "$TMP_DIR"' EXIT
+        
         SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-        cp "$SCRIPT_DIR/config.env" "$SCRIPT_DIR/docker-compose.yml" "$TMP_DIR/"
+        REPO_ROOT="$(cd "$(dirname "$LIB_LOCAL")/.." && pwd)"
+        
+        if [ -f "$SCRIPT_DIR/config.env" ]; then
+            cp "$SCRIPT_DIR/config.env" "$SCRIPT_DIR/docker-compose.yml" "$TMP_DIR/"
+        elif [ -f "$REPO_ROOT/projects/anytype/config.env" ]; then
+            cp "$REPO_ROOT/projects/anytype/config.env" "$REPO_ROOT/projects/anytype/docker-compose.yml" "$TMP_DIR/"
+        else
+            err "Local AnyType files not found in $SCRIPT_DIR or $REPO_ROOT/projects/anytype"
+            exit 1
+        fi
     fi
 
     load_configuration; detect_host_ip
