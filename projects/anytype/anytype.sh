@@ -24,6 +24,8 @@ HOST_IP="$HOST_IP"
 PUID="$PUID"
 PGID="$PGID"
 PODMAN_SOCK="$PODMAN_SOCK"
+PROJECT_IP="$PROJECT_IP"
+
 # Secrets (Rule 3)
 MINIO_ROOT_USER="${MINIO_ROOT_USER:-admin}"
 MINIO_ROOT_PASSWORD="${MINIO_ROOT_PASSWORD:-$(openssl rand -hex 16)}"
@@ -101,6 +103,7 @@ do_install() {
     download_repo_files "$REPO_RAW" config.env docker-compose.yml
     offer_interactive_mode; load_configuration; detect_host_ip
     setup_lingering_and_socket
+    assign_project_ip
     check_install_dir_writable "$INSTALL_DIR"
     mkdir -p "$INSTALL_DIR/storage" "$INSTALL_DIR/etc"
     
@@ -118,7 +121,26 @@ do_install() {
 }
 
 do_start() { systemctl --user start container-anytype.service; }
-do_update() { do_install; } # Alias for re-run installation logic
+
+do_update() {
+    download_repo_files "$REPO_RAW" config.env docker-compose.yml
+    offer_interactive_mode; load_configuration; detect_host_ip
+    setup_lingering_and_socket
+    
+    # Preserve PROJECT_IP from existing .env if it exists
+    if [ -f "$INSTALL_DIR/.env" ]; then
+        PROJECT_IP=$(grep "^PROJECT_IP=" "$INSTALL_DIR/.env" | cut -d'=' -f2- | tr -d '"' | tr -d "'")
+    else
+        assign_project_ip
+    fi
+
+    mv -f "$TMP_DIR/config.env" "$INSTALL_DIR/config.env"
+    mv -f "$TMP_DIR/docker-compose.yml" "$INSTALL_DIR/docker-compose.yml"
+    generate_runtime_env
+    deploy_and_persist
+    register_arcane_project "anytype" "$INSTALL_DIR"
+    print_success
+}
 
 root_protection
 check_dependencies curl podman-compose git openssl

@@ -17,6 +17,8 @@ services:
     command: [ "--replSet", "rs0", "--port", "27017" ]
     volumes:
       - ${STORAGE_DIR}/mongo-1:/data/db:Z
+    networks:
+      - internal_net
     healthcheck:
       test: [ "CMD", "mongosh", "--eval", "rs.status()" ]
       interval: 10s
@@ -27,6 +29,8 @@ services:
     restart: unless-stopped
     volumes:
       - ${STORAGE_DIR}/redis:/data:Z
+    networks:
+      - internal_net
 
   minio:
     image: minio/minio:${MINIO_VERSION}
@@ -38,6 +42,8 @@ services:
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
     volumes:
       - ${STORAGE_DIR}/minio:/data:Z
+    networks:
+      - internal_net
 
   # Any-Sync Daemons
   any-sync-coordinator:
@@ -57,6 +63,9 @@ services:
       dev.arcane.category: "${ARCANE_CATEGORY}"
       com.docker.compose.project: "anytype"
       com.docker.compose.project.working_dir: "/app/data/projects/anytype"
+    networks:
+      internal_net:
+        ipv4_address: ${PROJECT_IP}
     restart: unless-stopped
 
   any-sync-node-1:
@@ -70,6 +79,8 @@ services:
       - "${ANY_SYNC_NODE_1_API_PORT}:8081"
     volumes:
       - ./etc/any-sync-node-1:/etc/any-sync-node-1:Z
+    networks:
+      - internal_net
     restart: unless-stopped
 
   any-sync-filenode:
@@ -82,4 +93,10 @@ services:
       - "${ANY_SYNC_FILENODE_QUIC_PORT}:${ANY_SYNC_FILENODE_QUIC_PORT}/udp"
     volumes:
       - ./etc/any-sync-filenode:/etc/any-sync-filenode:Z
+    networks:
+      - internal_net
     restart: unless-stopped
+
+networks:
+  internal_net:
+    external: true

@@ -141,24 +141,32 @@ assign_project_ip() {
         podman network create --subnet "$subnet" "$network_name"
     fi
 
-    # 2. Get used IPs (containers and pods)
-    # Extract all IPv4 addresses currently assigned in the network
+    # 2. Get used IPs (active containers)
     local used_ips
     used_ips=$(podman network inspect "$network_name" --format '{{range .Containers}}{{.IPv4Address}}{{println}}{{end}}' | cut -d'/' -f1)
     
+    # 3. Get reserved IPs (persistent .env files in /opt)
+    # We look for PROJECT_IP= variables in all potential project directories
+    local reserved_ips
+    reserved_ips=$(grep -rh "^PROJECT_IP=" /opt/*/ .env 2>/dev/null | cut -d'=' -f2- | tr -d '"' | tr -d "'" || true)
+    
+    # Merge both lists to identify all occupied slots
+    local all_occupied
+    all_occupied=$(echo -e "${used_ips}\n${reserved_ips}" | sort -u | grep -v "^$")
+
     # Detect the gateway IP to avoid clashing
     local gateway
     gateway=$(podman network inspect "$network_name" --format '{{range .Plugins}}{{range .IPAM.Ranges}}{{range .}}{{if .Gateway}}{{.Gateway}}{{end}}{{end}}{{end}}{{end}}')
 
-    # 3. Find first available IP from .1 to .254
+    # 4. Find first available IP from .1 to .254
     for i in $(seq 1 254); do
         local candidate="${base_ip}.${i}"
         
         # Skip if it is the gateway
         [[ "$candidate" == "$gateway" ]] && continue
         
-        # Skip if already in use
-        if echo "$used_ips" | grep -qW "$candidate"; then
+        # Skip if already in use or reserved
+        if echo "$all_occupied" | grep -qW "$candidate"; then
             continue
         fi
         
