@@ -218,6 +218,48 @@ detect_host_ip() {
     fi
 }
 
+# Finds and assigns the next available IP in the internal_net range (Ref: docs/LIBRARY_REFERENCE.md)
+assign_project_ip() {
+    local network_name="internal_net"
+    local subnet="172.170.1.0/24"
+    local base_ip="172.170.1"
+
+    # 1. Ensure network exists
+    if ! podman network exists "$network_name"; then
+        log "Creating internal network '$network_name' ($subnet)..."
+        podman network create --subnet "$subnet" "$network_name"
+    fi
+
+    # 2. Get used IPs (containers and pods)
+    # Extract all IPv4 addresses currently assigned in the network
+    local used_ips
+    used_ips=$(podman network inspect "$network_name" --format '{{range .Containers}}{{.IPv4Address}}{{println}}{{end}}' | cut -d'/' -f1)
+    
+    # Detect the gateway IP to avoid clashing
+    local gateway
+    gateway=$(podman network inspect "$network_name" --format '{{range .Plugins}}{{range .IPAM.Ranges}}{{range .}}{{if .Gateway}}{{.Gateway}}{{end}}{{end}}{{end}}{{end}}')
+
+    # 3. Find first available IP from .1 to .254
+    for i in $(seq 1 254); do
+        local candidate="${base_ip}.${i}"
+        
+        # Skip if it is the gateway
+        [[ "$candidate" == "$gateway" ]] && continue
+        
+        # Skip if already in use
+        if echo "$used_ips" | grep -qW "$candidate"; then
+            continue
+        fi
+        
+        PROJECT_IP="$candidate"
+        log "Available IP found for project: $PROJECT_IP"
+        return 0
+    done
+
+    err "No available IPs left in subnet $subnet"
+    exit 1
+}
+
 # Reuses existing secrets or securely generates new hexadecimal keys (Ref: docs/LIBRARY_REFERENCE.md)
 manage_credentials() {
     local install_dir="${1:?manage_credentials requires INSTALL_DIR}"
