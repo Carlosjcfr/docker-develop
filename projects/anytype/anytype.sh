@@ -147,10 +147,16 @@ do_install() {
             cp "$SCRIPT_DIR/config.env" "$SCRIPT_DIR/docker-compose.yml" "$TMP_DIR/"
         elif [ -f "$REPO_ROOT/projects/anytype/config.env" ]; then
             cp "$REPO_ROOT/projects/anytype/config.env" "$REPO_ROOT/projects/anytype/docker-compose.yml" "$TMP_DIR/"
+        elif [ -f "projects/anytype/config.env" ]; then
+            cp "projects/anytype/config.env" "projects/anytype/docker-compose.yml" "$TMP_DIR/"
+        elif [ -f "config.env" ]; then
+            cp "config.env" "docker-compose.yml" "$TMP_DIR/"
         else
             err "Local AnyType files not found. Searched:"
             err "  - $SCRIPT_DIR"
             err "  - $REPO_ROOT/projects/anytype"
+            err "  - $(pwd)/projects/anytype"
+            err "  - $(pwd)"
             exit 1
         fi
     fi
@@ -191,10 +197,16 @@ do_update() {
             cp "$SCRIPT_DIR/config.env" "$SCRIPT_DIR/docker-compose.yml" "$TMP_DIR/"
         elif [ -f "$REPO_ROOT/projects/anytype/config.env" ]; then
             cp "$REPO_ROOT/projects/anytype/config.env" "$REPO_ROOT/projects/anytype/docker-compose.yml" "$TMP_DIR/"
+        elif [ -f "projects/anytype/config.env" ]; then
+            cp "projects/anytype/config.env" "projects/anytype/docker-compose.yml" "$TMP_DIR/"
+        elif [ -f "config.env" ]; then
+            cp "config.env" "docker-compose.yml" "$TMP_DIR/"
         else
             err "Local AnyType files not found. Searched:"
             err "  - $SCRIPT_DIR"
             err "  - $REPO_ROOT/projects/anytype"
+            err "  - $(pwd)/projects/anytype"
+            err "  - $(pwd)"
             exit 1
         fi
     fi
