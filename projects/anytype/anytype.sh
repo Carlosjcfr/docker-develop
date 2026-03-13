@@ -132,20 +132,29 @@ do_install() {
         TMP_DIR=$(mktemp -d)
         trap 'rm -rf "$TMP_DIR"' EXIT
         
-        # Robust path resolution
-        local SCRIPT_DIR REPO_ROOT
+        # Robust path resolution: try script location first, then search upwards for the repo root
+        local SCRIPT_DIR REPO_ROOT=""
         SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" 2>/dev/null && pwd || echo ".")"
         
-        # Sanitize LIB_LOCAL path to find repo root
-        if [[ "$LIB_LOCAL" = /* ]]; then
-            REPO_ROOT=$(dirname "$(dirname "$LIB_LOCAL")")
-        else
-            REPO_ROOT=$(dirname "$(dirname "$(pwd)/$LIB_LOCAL")")
-        fi
+        # Smart Root Seeker: search upwards starting from PWD and LIB_LOCAL's parent
+        local SEARCH_PATHS=()
+        [[ -n "${LIB_LOCAL:-}" ]] && SEARCH_PATHS+=("$(dirname "$LIB_LOCAL")")
+        SEARCH_PATHS+=("$(pwd)")
+        
+        for base in "${SEARCH_PATHS[@]}"; do
+            local current="$base"
+            while [[ "$current" != "/" && "$current" != "." ]]; do
+                if [[ -d "$current/projects/anytype" ]]; then
+                    REPO_ROOT="$current"
+                    break 2
+                fi
+                current=$(dirname "$current")
+            done
+        done
         
         if [ -f "$SCRIPT_DIR/config.env" ]; then
             cp "$SCRIPT_DIR/config.env" "$SCRIPT_DIR/docker-compose.yml" "$TMP_DIR/"
-        elif [ -f "$REPO_ROOT/projects/anytype/config.env" ]; then
+        elif [[ -n "$REPO_ROOT" && -f "$REPO_ROOT/projects/anytype/config.env" ]]; then
             cp "$REPO_ROOT/projects/anytype/config.env" "$REPO_ROOT/projects/anytype/docker-compose.yml" "$TMP_DIR/"
         elif [ -f "projects/anytype/config.env" ]; then
             cp "projects/anytype/config.env" "projects/anytype/docker-compose.yml" "$TMP_DIR/"
@@ -154,7 +163,7 @@ do_install() {
         else
             err "Local AnyType files not found. Searched:"
             err "  - $SCRIPT_DIR"
-            err "  - $REPO_ROOT/projects/anytype"
+            [[ -n "$REPO_ROOT" ]] && err "  - $REPO_ROOT/projects/anytype"
             err "  - $(pwd)/projects/anytype"
             err "  - $(pwd)"
             exit 1
