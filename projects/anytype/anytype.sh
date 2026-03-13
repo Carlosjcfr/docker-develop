@@ -73,6 +73,8 @@ deploy_and_persist() {
     # Ensure network exists (pre-flight check)
     podman network exists internal_net || podman network create --subnet 172.170.1.0/24 internal_net
 
+    # Pre-cleanup to avoid "name already in use" errors on retries
+    podman-compose down 2>/dev/null || true
     podman-compose up -d
     verify_containers_running "any-sync-bundle" "any-sync-mongo" "any-sync-redis"
     
@@ -119,12 +121,8 @@ do_install() {
         log "[DEV] LIB_LOCAL detected. Using local AnyType files."
         TMP_DIR=$(mktemp -d)
         trap 'rm -rf "$TMP_DIR"' EXIT
-        # Assumes execution from root or projects/anytype
-        if [ -f "projects/anytype/config.env" ]; then
-            cp projects/anytype/config.env projects/anytype/docker-compose.yml "$TMP_DIR/"
-        else
-            cp config.env docker-compose.yml "$TMP_DIR/"
-        fi
+        SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+        cp "$SCRIPT_DIR/config.env" "$SCRIPT_DIR/docker-compose.yml" "$TMP_DIR/"
     fi
 
     load_configuration; detect_host_ip
@@ -150,11 +148,8 @@ do_update() {
         log "[DEV] LIB_LOCAL detected. Using local AnyType files."
         TMP_DIR=$(mktemp -d)
         trap 'rm -rf "$TMP_DIR"' EXIT
-        if [ -f "projects/anytype/config.env" ]; then
-            cp projects/anytype/config.env projects/anytype/docker-compose.yml "$TMP_DIR/"
-        else
-            cp config.env docker-compose.yml "$TMP_DIR/"
-        fi
+        SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+        cp "$SCRIPT_DIR/config.env" "$SCRIPT_DIR/docker-compose.yml" "$TMP_DIR/"
     fi
 
     load_configuration; detect_host_ip

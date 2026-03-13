@@ -1,6 +1,5 @@
 services:
   # Any-Sync Bundle (grishy/any-sync-bundle)
-  # Zero-config all-in-one AnyType server solution recommended by community-scripts.org
   any-sync-bundle:
     image: ghcr.io/grishy/any-sync-bundle:${ANY_SYNC_BUNDLE_VERSION}
     container_name: any-sync-bundle
@@ -17,10 +16,8 @@ services:
     volumes:
       - ./etc:/etc/any-sync-bundle:Z
     ports:
-      # DRPC and QUIC for AnyType clients
       - "${ANY_SYNC_DRPC_PORT}:33010"
       - "${ANY_SYNC_QUIC_PORT}:33020/udp"
-      # Info / Dashboard
       - "${ANY_SYNC_INFO_PORT}:8080"
     labels:
       dev.arcane.icon: "${ARCANE_ICON}"
@@ -41,7 +38,8 @@ services:
     networks:
       - internal_net
     healthcheck:
-      test: ["CMD", "mongosh", "--eval", "rs.initiate({_id:'rs0',members:[{_id:0,host:'mongo:27017'}]}) || rs.status().ok"]
+      # Simplificamos el comando para evitar errores de escape en Podman
+      test: mongosh --eval "rs.initiate({_id:'rs0',members:[{_id:0,host:'mongo:27017'}]}) || rs.status().ok"
       interval: 10s
       timeout: 5s
       retries: 5
