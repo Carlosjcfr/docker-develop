@@ -1,0 +1,31 @@
+services:
+  anytype:
+    image: ${IMAGE_TAG}
+    container_name: ${CONTAINER_NAME}
+    restart: unless-stopped
+    ports:
+      - "${PROJECT_IP}:443:443/tcp"
+      - "${PROJECT_IP}:443:443/udp"
+      - "${PROJECT_IP}:8000:8000/udp"
+      - "${PROJECT_IP}:8001-8003:8001-8003/udp"
+      - "${PROJECT_IP}:31010:31010/tcp"
+      - "${PROJECT_IP}:31011:31011/tcp"
+      - "${PROJECT_IP}:31012:31012/tcp"
+    environment:
+      # These variables are used for initial configuration generation
+      - ANY_SYNC_BUNDLE_INIT_EXTERNAL_ADDRS=${PROJECT_IP}
+    volumes:
+      - ./data:/app/storage:Z
+      - ./etc:/app/etc:Z
+    networks:
+      internal_net:
+        ipv4_address: ${PROJECT_IP}
+    labels:
+      dev.arcane.icon: "${ARCANE_ICON}"
+      dev.arcane.category: "${ARCANE_CATEGORY}"
+      com.docker.compose.project: "anytype"
+      com.docker.compose.project.working_dir: "/app/data/projects/anytype"
+
+networks:
+  internal_net:
+    external: true
