@@ -153,11 +153,11 @@ assign_project_ip() {
     
     # Merge both lists to identify all occupied slots
     local all_occupied
-    all_occupied=$(echo -e "${used_ips}\n${reserved_ips}" | sort -u | grep -v "^$")
+    all_occupied=$(echo -e "${used_ips}\n${reserved_ips}" | sort -u | grep -v "^$" || true)
 
     # Detect the gateway IP to avoid clashing (default to .1)
     local gateway
-    gateway=$(podman network inspect "$network_name" --format '{{json .}}' 2>/dev/null | grep -oP '"gateway":\s*"\K[0-9.]+' | head -1 || echo "${base_ip}.1")
+    gateway=$(podman network inspect "$network_name" --format '{{json .}}' 2>/dev/null | grep -oP '"gateway":\s*"\K[0-9.]+' | head -1 || true)
     [ -z "$gateway" ] && gateway="${base_ip}.1"
 
     # 4. Find first available IP from .2 to .254
