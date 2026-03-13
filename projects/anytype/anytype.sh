@@ -87,13 +87,13 @@ Wants=network-online.target
 After=network-online.target
 
 [Service]
-[Service]
 Type=oneshot
 RemainAfterExit=yes
 WorkingDirectory=$INSTALL_DIR
 ExecStart=$(command -v podman-compose) up -d
 ExecStop=$(command -v podman-compose) down
 TimeoutStartSec=300
+TimeoutStopSec=30
 [Install]
 WantedBy=default.target
 EOF
@@ -114,6 +114,15 @@ print_success() {
     echo "================================================================="
 }
 
+prepare_directories() {
+    log "Preparing data directories..."
+    check_install_dir_writable "$INSTALL_DIR"
+    mkdir -p "$INSTALL_DIR/storage" "$INSTALL_DIR/etc"
+    # Ensure containers can always write to these folders even in complex rootless mappings
+    sudo chown -R "${PUID:-$UID}:${PGID:-$UID}" "$INSTALL_DIR/storage" "$INSTALL_DIR/etc"
+    log "Directories ready."
+}
+
 do_install() {
     if [ -z "${LIB_LOCAL:-}" ]; then
         download_repo_files "$REPO_RAW" config.env docker-compose.yml
@@ -128,8 +137,7 @@ do_install() {
     load_configuration; detect_host_ip
     setup_lingering_and_socket
     assign_project_ip
-    check_install_dir_writable "$INSTALL_DIR"
-    mkdir -p "$INSTALL_DIR/storage" "$INSTALL_DIR/etc"
+    prepare_directories
     
     mv -f "$TMP_DIR/config.env" "$INSTALL_DIR/config.env"
     mv -f "$TMP_DIR/docker-compose.yml" "$INSTALL_DIR/docker-compose.yml"
@@ -162,6 +170,7 @@ do_update() {
         assign_project_ip
     fi
 
+    prepare_directories
     mv -f "$TMP_DIR/config.env" "$INSTALL_DIR/config.env"
     mv -f "$TMP_DIR/docker-compose.yml" "$INSTALL_DIR/docker-compose.yml"
     generate_runtime_env

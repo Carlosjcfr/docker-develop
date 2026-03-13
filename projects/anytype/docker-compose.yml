@@ -16,8 +16,8 @@ services:
     volumes:
       - ./etc:/etc/any-sync-bundle:Z
     ports:
-      - "${ANY_SYNC_DRPC_PORT}:33010"
-      - "${ANY_SYNC_QUIC_PORT}:33020/udp"
+      - "${ANY_SYNC_DRPC_PORT}:010"
+      - "${ANY_SYNC_QUIC_PORT}:020/udp"
       - "${ANY_SYNC_INFO_PORT}:8080"
     labels:
       dev.arcane.icon: "${ARCANE_ICON}"
@@ -29,7 +29,7 @@ services:
         ipv4_address: ${PROJECT_IP}
 
   mongo:
-    image: mongo:${MONGO_VERSION}
+    image: docker.io/library/mongo:${MONGO_VERSION}
     container_name: any-sync-mongo
     restart: unless-stopped
     command: ["--replSet", "rs0", "--bind_ip_all"]
@@ -38,14 +38,14 @@ services:
     networks:
       - internal_net
     healthcheck:
-      # Simplificamos el comando para evitar errores de escape en Podman
-      test: mongosh --eval "rs.initiate({_id:'rs0',members:[{_id:0,host:'mongo:27017'}]}) || rs.status().ok"
+      # Use localhost inside the container for more reliable healthcheck in rootless Podman
+      test: mongosh --port 27017 --eval "rs.initiate({_id:'rs0',members:[{_id:0,host:'mongo:27017'}]}) || rs.status().ok"
       interval: 10s
       timeout: 5s
       retries: 5
 
   redis:
-    image: redis/redis-stack-server:${REDIS_VERSION}
+    image: docker.io/redis/redis-stack-server:${REDIS_VERSION}
     container_name: any-sync-redis
     restart: unless-stopped
     volumes:
