@@ -117,9 +117,10 @@ print_success() {
 prepare_directories() {
     log "Preparing data directories..."
     check_install_dir_writable "$INSTALL_DIR"
-    mkdir -p "$INSTALL_DIR/storage" "$INSTALL_DIR/etc"
-    # Ensure containers can always write to these folders even in complex rootless mappings
-    sudo chown -R "${PUID:-$UID}:${PGID:-$UID}" "$INSTALL_DIR/storage" "$INSTALL_DIR/etc"
+    # Create specific subdirectories for AnyType storage and configuration
+    mkdir -p "$INSTALL_DIR/storage/mongo" "$INSTALL_DIR/storage/redis" "$INSTALL_DIR/etc"
+    # Ensure containers can always write to these folders (Podman rootless mapping)
+    sudo chown -R "${PUID:-$UID}:${PGID:-$UID}" "$INSTALL_DIR"
     log "Directories ready."
 }
 
@@ -131,15 +132,25 @@ do_install() {
         TMP_DIR=$(mktemp -d)
         trap 'rm -rf "$TMP_DIR"' EXIT
         
-        SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-        REPO_ROOT="$(cd "$(dirname "$LIB_LOCAL")/.." && pwd)"
+        # Robust path resolution
+        local SCRIPT_DIR REPO_ROOT
+        SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" 2>/dev/null && pwd || echo ".")"
+        
+        # Sanitize LIB_LOCAL path to find repo root
+        if [[ "$LIB_LOCAL" = /* ]]; then
+            REPO_ROOT=$(dirname "$(dirname "$LIB_LOCAL")")
+        else
+            REPO_ROOT=$(dirname "$(dirname "$(pwd)/$LIB_LOCAL")")
+        fi
         
         if [ -f "$SCRIPT_DIR/config.env" ]; then
             cp "$SCRIPT_DIR/config.env" "$SCRIPT_DIR/docker-compose.yml" "$TMP_DIR/"
         elif [ -f "$REPO_ROOT/projects/anytype/config.env" ]; then
             cp "$REPO_ROOT/projects/anytype/config.env" "$REPO_ROOT/projects/anytype/docker-compose.yml" "$TMP_DIR/"
         else
-            err "Local AnyType files not found in $SCRIPT_DIR or $REPO_ROOT/projects/anytype"
+            err "Local AnyType files not found. Searched:"
+            err "  - $SCRIPT_DIR"
+            err "  - $REPO_ROOT/projects/anytype"
             exit 1
         fi
     fi
@@ -167,15 +178,23 @@ do_update() {
         TMP_DIR=$(mktemp -d)
         trap 'rm -rf "$TMP_DIR"' EXIT
         
-        SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-        REPO_ROOT="$(cd "$(dirname "$LIB_LOCAL")/.." && pwd)"
+        local SCRIPT_DIR REPO_ROOT
+        SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" 2>/dev/null && pwd || echo ".")"
+        
+        if [[ "$LIB_LOCAL" = /* ]]; then
+            REPO_ROOT=$(dirname "$(dirname "$LIB_LOCAL")")
+        else
+            REPO_ROOT=$(dirname "$(dirname "$(pwd)/$LIB_LOCAL")")
+        fi
         
         if [ -f "$SCRIPT_DIR/config.env" ]; then
             cp "$SCRIPT_DIR/config.env" "$SCRIPT_DIR/docker-compose.yml" "$TMP_DIR/"
         elif [ -f "$REPO_ROOT/projects/anytype/config.env" ]; then
             cp "$REPO_ROOT/projects/anytype/config.env" "$REPO_ROOT/projects/anytype/docker-compose.yml" "$TMP_DIR/"
         else
-            err "Local AnyType files not found in $SCRIPT_DIR or $REPO_ROOT/projects/anytype"
+            err "Local AnyType files not found. Searched:"
+            err "  - $SCRIPT_DIR"
+            err "  - $REPO_ROOT/projects/anytype"
             exit 1
         fi
     fi
