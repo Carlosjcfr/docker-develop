@@ -258,7 +258,7 @@ assign_project_ip() {
         [[ "$candidate" == "$gateway" ]] && continue
         
         # Skip if already in use or reserved
-        if echo "$all_occupied" | grep -qW "$candidate"; then
+        if echo "$all_occupied" | grep -qFx "$candidate"; then
             continue
         fi
         
