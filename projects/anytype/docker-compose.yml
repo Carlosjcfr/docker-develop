@@ -1,63 +1,27 @@
 services:
-  # Generators (Rule 7: Essential for AnySync config)
-  generateconfig-anyconf:
-    image: ghcr.io/anyproto/any-sync-tools:${ANY_SYNC_TOOLS_VERSION}
-    container_name: any-sync-gen-anyconf
-    restart: "no"
-    volumes:
-      - ./.env:/code/.env:ro,Z
-      - ./docker-generateconfig:/code/docker-generateconfig:ro,Z
-      - ${STORAGE_DIR}:/code/storage:Z
-
-  # Infrastructure
-  mongo-1:
-    image: mongo:${MONGO_VERSION}
-    container_name: any-sync-mongo
+  # Any-Sync Bundle (grishy/any-sync-bundle)
+  # Zero-config all-in-one AnyType server solution recommended by community-scripts.org
+  any-sync-bundle:
+    image: ghcr.io/grishy/any-sync-bundle:${ANY_SYNC_BUNDLE_VERSION}
+    container_name: any-sync-bundle
     restart: unless-stopped
-    command: [ "--replSet", "rs0", "--port", "27017" ]
-    volumes:
-      - ${STORAGE_DIR}/mongo-1:/data/db:Z
-    networks:
-      - internal_net
-    healthcheck:
-      test: [ "CMD", "mongosh", "--eval", "rs.status()" ]
-      interval: 10s
-
-  redis:
-    image: redis/redis-stack-server:${REDIS_VERSION}
-    container_name: any-sync-redis
-    restart: unless-stopped
-    volumes:
-      - ${STORAGE_DIR}/redis:/data:Z
-    networks:
-      - internal_net
-
-  minio:
-    image: minio/minio:${MINIO_VERSION}
-    container_name: any-sync-minio
-    restart: unless-stopped
-    command: [ "server", "/data", "--console-address", ":9001" ]
-    environment:
-      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
-      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
-    volumes:
-      - ${STORAGE_DIR}/minio:/data:Z
-    networks:
-      - internal_net
-
-  # Any-Sync Daemons
-  any-sync-coordinator:
-    image: ghcr.io/anyproto/any-sync-coordinator:${ANY_SYNC_COORDINATOR_VERSION}
-    container_name: any-sync-coordinator
     depends_on:
-      mongo-1:
+      mongo:
         condition: service_healthy
-    ports:
-      - "${ANY_SYNC_COORDINATOR_PORT}:${ANY_SYNC_COORDINATOR_PORT}"
-      - "${ANY_SYNC_COORDINATOR_QUIC_PORT}:${ANY_SYNC_COORDINATOR_QUIC_PORT}/udp"
+      redis:
+        condition: service_healthy
+    environment:
+      - ANY_SYNC_BUNDLE_INIT_EXTERNAL_ADDRS=${HOST_IP}
+      - ANY_SYNC_BUNDLE_MONGODB_URI=mongodb://mongo:27017/any-sync?replicaSet=rs0
+      - ANY_SYNC_BUNDLE_REDIS_URI=redis://redis:6379
     volumes:
-      - ./etc/any-sync-coordinator:/etc/any-sync-coordinator:Z
-      - ${STORAGE_DIR}/networkStore/any-sync-coordinator:/networkStore:Z
+      - ./etc:/etc/any-sync-bundle:Z
+    ports:
+      # DRPC and QUIC for AnyType clients
+      - "${ANY_SYNC_DRPC_PORT}:33010"
+      - "${ANY_SYNC_QUIC_PORT}:33020/udp"
+      # Info / Dashboard
+      - "${ANY_SYNC_INFO_PORT}:8080"
     labels:
       dev.arcane.icon: "${ARCANE_ICON}"
       dev.arcane.category: "${ARCANE_CATEGORY}"
@@ -66,36 +30,35 @@ services:
     networks:
       internal_net:
         ipv4_address: ${PROJECT_IP}
-    restart: unless-stopped
 
-  any-sync-node-1:
-    image: ghcr.io/anyproto/any-sync-node:${ANY_SYNC_NODE_VERSION}
-    container_name: any-sync-node-1
-    depends_on:
-      - any-sync-coordinator
-    ports:
-      - "${ANY_SYNC_NODE_1_PORT}:${ANY_SYNC_NODE_1_PORT}"
-      - "${ANY_SYNC_NODE_1_QUIC_PORT}:${ANY_SYNC_NODE_1_QUIC_PORT}/udp"
-      - "${ANY_SYNC_NODE_1_API_PORT}:8081"
+  mongo:
+    image: mongo:${MONGO_VERSION}
+    container_name: any-sync-mongo
+    restart: unless-stopped
+    command: ["--replSet", "rs0", "--bind_ip_all"]
     volumes:
-      - ./etc/any-sync-node-1:/etc/any-sync-node-1:Z
+      - ./storage/mongo:/data/db:Z
     networks:
       - internal_net
-    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "rs.initiate({_id:'rs0',members:[{_id:0,host:'mongo:27017'}]}) || rs.status().ok"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
-  any-sync-filenode:
-    image: ghcr.io/anyproto/any-sync-filenode:${ANY_SYNC_FILENODE_VERSION}
-    container_name: any-sync-filenode
-    depends_on:
-      - any-sync-coordinator
-    ports:
-      - "${ANY_SYNC_FILENODE_PORT}:${ANY_SYNC_FILENODE_PORT}"
-      - "${ANY_SYNC_FILENODE_QUIC_PORT}:${ANY_SYNC_FILENODE_QUIC_PORT}/udp"
+  redis:
+    image: redis/redis-stack-server:${REDIS_VERSION}
+    container_name: any-sync-redis
+    restart: unless-stopped
     volumes:
-      - ./etc/any-sync-filenode:/etc/any-sync-filenode:Z
+      - ./storage/redis:/data:Z
     networks:
       - internal_net
-    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
 
 networks:
   internal_net:
