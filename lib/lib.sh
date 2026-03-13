@@ -231,27 +231,30 @@ assign_project_ip() {
     fi
 
     # 2. Get used IPs (active containers)
+    # Using JSON + grep is more robust across Podman versions than complex templates
     local used_ips
-    used_ips=$(podman network inspect "$network_name" --format '{{range .Containers}}{{.IPv4Address}}{{println}}{{end}}' | cut -d'/' -f1)
+    used_ips=$(podman network inspect "$network_name" --format '{{json .}}' 2>/dev/null | grep -oP '"IPv4Address":\s*"\K[0-9.]+' | sort -u || true)
     
-    # 3. Get reserved IPs (persistent .env files in /opt)
-    # We look for PROJECT_IP= variables in all potential project directories
+    # 3. Get reserved IPs (persistent .env files in /opt and /app/data/projects)
+    # We look for PROJECT_IP= variables in potential project directories
     local reserved_ips
-    reserved_ips=$(grep -rh "^PROJECT_IP=" /opt/*/ .env 2>/dev/null | cut -d'=' -f2- | tr -d '"' | tr -d "'" || true)
+    reserved_ips=$(grep -rh "^PROJECT_IP=" /opt/*/.env /app/data/projects/*/.env 2>/dev/null | cut -d'=' -f2- | tr -d '"' | tr -d "'" | sort -u || true)
     
     # Merge both lists to identify all occupied slots
     local all_occupied
     all_occupied=$(echo -e "${used_ips}\n${reserved_ips}" | sort -u | grep -v "^$")
 
-    # Detect the gateway IP to avoid clashing
+    # Detect the gateway IP to avoid clashing (default to .1)
     local gateway
-    gateway=$(podman network inspect "$network_name" --format '{{range .Plugins}}{{range .IPAM.Ranges}}{{range .}}{{if .Gateway}}{{.Gateway}}{{end}}{{end}}{{end}}{{end}}')
+    gateway=$(podman network inspect "$network_name" --format '{{json .}}' 2>/dev/null | grep -oP '"gateway":\s*"\K[0-9.]+' | head -1 || echo "${base_ip}.1")
+    [ -z "$gateway" ] && gateway="${base_ip}.1"
 
-    # 4. Find first available IP from .1 to .254
-    for i in $(seq 1 254); do
+    # 4. Find first available IP from .2 to .254
+    # We skip .1 as it is the standard gateway
+    for i in $(seq 2 254); do
         local candidate="${base_ip}.${i}"
         
-        # Skip if it is the gateway
+        # Skip if it's the gateway (even if not .1)
         [[ "$candidate" == "$gateway" ]] && continue
         
         # Skip if already in use or reserved
