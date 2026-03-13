@@ -24,9 +24,10 @@ Actúa como experto DevOps. Crea los 5 ficheros para integrar este servicio en m
 7. **Nombres de Contenedor Explícitos:** Define siempre `container_name: <nombre>` en cada servicio de Compose. Sin esto, las comprobaciones de estado de nuestro framework fallarán.
 8. **Sincronización de Entorno (CRÍTICO):** Cualquier variable declarada en `config.env` que se use en `docker-compose.yml` (especialmente versiones como `${MONGO_VERSION}`) **DEBE** ser añadida explícitamente a la función `generate_runtime_env` del script `.sh`. Si olvidas añadir una versión al `.env` final, Podman fallará con el error `invalid reference format`.
 9. **Fin de Línea Unix (LF):** Todos los archivos `.sh` y `.env` deben ser guardados estrictamente con formato de fin de línea Unix (LF). El formato Windows (CRLF) causará errores sintácticos invisibles como `\r: command not found`.
-10. **Modo de Desarrollo (Pruebas Locales):** El script debe incluir soporte para `LIB_LOCAL`. Esto permite probar cambios en los archivos locales sin necesidad de subirlos a GitHub indicando `export LIB_LOCAL=$(pwd)/lib/lib.sh`.
-11. **Investigación de Terceros (Community First):** Antes de implementar un stack complejo desde cero, el paso obligatorio es buscar "community scripts" o "all-in-one bundles" (ej: `community-scripts.org` o proyectos `aio` en GitHub). Estos suelen resolver problemas de replicación, certificados y configuración que son difíciles de orquestar manualmente.
+10. **Modo de Desarrollo (Pruebas Locales):** El script debe incluir soporte robusto para `LIB_LOCAL`. El script debe deducir la ruta del repositorio basándose en la ubicación de la librería para encontrar los archivos locales incluso si se ejecuta desde directorios temporales.
+11. **Investigación de Terceros (Community First):** Antes de implementar un stack complejo desde cero, el paso obligatorio es buscar "community scripts" o "all-in-one bundles" (ej: `community-scripts.org` o proyectos `aio` en GitHub).
 12. **Menú de Gestión Interactivo:** Si el servicio ya está instalado (detectado por `check_existing_installation`), el script DEBE mostrar un menú interactivo con las opciones: 1) Start, 2) Update, 3) Uninstall, 0) Cancel. Esto garantiza una experiencia de usuario consistente en todo el framework.
+13. **Gestión de Permisos (Ownership):** Implementa siempre la función `prepare_directories` para realizar un `sudo chown -R ${PUID}:${PGID}` sobre las carpetas de datos creadas. Sin esto, los contenedores rootless de Podman suelen fallar por falta de permisos de escritura.
 
 ### Integración con Arcane (Visibility)
 
@@ -75,14 +76,10 @@ networks:
     external: true
 ```
 
-*(Ver detalle en: [TEMPLATE/docker-compose-pattern.yml](TEMPLATE/docker-compose-pattern.yml))*
-
 ### 3. Registro en el Sistema
 
 Genera el archivo `.registry` con esta sintaxis de 6 campos (endpoint dinámico `{IP}`):
 `"Nombre|projects/<slug>/<slug>.sh|/opt/<slug>|<main_container>|Descripción breve|Servicio: {IP}:<PORT>"`
-
-*(Ver detalle en: [TEMPLATE/registry-pattern.txt](TEMPLATE/registry-pattern.txt))*
 
 ---
 

@@ -99,6 +99,8 @@ deploy_and_persist() {
         fi
     fi
     
+    # Pre-cleanup to avoid "name already in use" errors on retries
+    podman-compose down 2>/dev/null || true
     podman-compose up -d > /dev/null 2>&1
     verify_containers_running <tus_contenedores_aqui>
     
@@ -134,6 +136,16 @@ print_success() {
     echo "================================================================="
 }
 
+prepare_directories() {
+    log "Preparing data directories..."
+    check_install_dir_writable "$INSTALL_DIR"
+    mkdir -p "$INSTALL_DIR"
+    # Ensure containers can always write to these folders even in complex rootless mappings
+    # Set default volumes here (e.g., config, data)
+    # sudo chown -R "${PUID:-$UID}:${PGID:-$UID}" "$INSTALL_DIR/data"
+    log "Directories ready."
+}
+
 # -----------------------------------------------------------------------------
 # REQUIRED ACTIONS
 # -----------------------------------------------------------------------------
@@ -145,11 +157,18 @@ do_install() {
         log "[DEV] LIB_LOCAL detected. Using local project files."
         TMP_DIR=$(mktemp -d)
         trap 'rm -rf "$TMP_DIR"' EXIT
-        # Assumes execution from root or projects/<slug>
-        if [ -f "projects/<slug>/config.env" ]; then
-            cp "projects/<slug>/config.env" "projects/<slug>/docker-compose.yml" "$TMP_DIR/"
+        
+        local SCRIPT_DIR REPO_ROOT
+        SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+        REPO_ROOT="$(cd "$(dirname "$LIB_LOCAL")/.." && pwd)"
+        
+        if [ -f "$SCRIPT_DIR/config.env" ]; then
+            cp "$SCRIPT_DIR/config.env" "$SCRIPT_DIR/docker-compose.yml" "$TMP_DIR/"
+        elif [ -f "$REPO_ROOT/projects/<slug>/config.env" ]; then
+            cp "$REPO_ROOT/projects/<slug>/config.env" "$REPO_ROOT/projects/<slug>/docker-compose.yml" "$TMP_DIR/"
         else
-            cp config.env docker-compose.yml "$TMP_DIR/"
+            err "Local files not found in $SCRIPT_DIR or $REPO_ROOT/projects/<slug>"
+            exit 1
         fi
     fi
 
@@ -157,9 +176,7 @@ do_install() {
     # manage_credentials "$INSTALL_DIR" MIVAR_SECRETA
     setup_lingering_and_socket
     assign_project_ip
-    
-    check_install_dir_writable "$INSTALL_DIR"
-    mkdir -p "$INSTALL_DIR"
+    prepare_directories
     mv -f "$TMP_DIR/config.env" "$INSTALL_DIR/config.env"
     mv -f "$TMP_DIR/docker-compose.yml" "$INSTALL_DIR/docker-compose.yml"
     
@@ -181,10 +198,18 @@ do_update() {
         log "[DEV] LIB_LOCAL detected. Using local project files."
         TMP_DIR=$(mktemp -d)
         trap 'rm -rf "$TMP_DIR"' EXIT
-        if [ -f "projects/<slug>/config.env" ]; then
-            cp "projects/<slug>/config.env" "projects/<slug>/docker-compose.yml" "$TMP_DIR/"
+        
+        local SCRIPT_DIR REPO_ROOT
+        SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+        REPO_ROOT="$(cd "$(dirname "$LIB_LOCAL")/.." && pwd)"
+        
+        if [ -f "$SCRIPT_DIR/config.env" ]; then
+            cp "$SCRIPT_DIR/config.env" "$SCRIPT_DIR/docker-compose.yml" "$TMP_DIR/"
+        elif [ -f "$REPO_ROOT/projects/<slug>/config.env" ]; then
+            cp "$REPO_ROOT/projects/<slug>/config.env" "$REPO_ROOT/projects/<slug>/docker-compose.yml" "$TMP_DIR/"
         else
-            cp config.env docker-compose.yml "$TMP_DIR/"
+            err "Local files not found in $SCRIPT_DIR or $REPO_ROOT/projects/<slug>"
+            exit 1
         fi
     fi
 
@@ -198,6 +223,7 @@ do_update() {
         assign_project_ip
     fi
 
+    prepare_directories
     generate_runtime_env
     
     cp "$INSTALL_DIR/config.env" "$INSTALL_DIR/config.env.bak" 2>/dev/null || true

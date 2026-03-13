@@ -8,31 +8,26 @@ Actúa como experto DevOps. Crea los 5 ficheros para integrar este servicio en m
 **[VOLÚMENES]:** <lista_volumenes>
 **[IMAGEN]:** <url_imagen_fqdn> (DEBE empezar por docker.io/ o ghcr.io/)
 
+---
+
 **REGLAS ESTRICTAS:**
 
-1. **Rootless:** Cero referencias a `sudo` o ejecución como root.
-2. **SELinux:** Todo mapeo de carpetas/volúmenes en `docker-compose.yml` debe terminar en `:Z`.
-3. **Secretos:** Nunca poner passwords fijos en `config.env`; se auto-generan vía bash y se leen del entorno.
-4. **Entregables:** Genera `docker-compose.yml`, `config.env`, `README.md` (formato "Cheat Sheet" minimalista de 30 líneas máximo), el script orquestador `<slug>.sh`, y el archivo de auto-registro `.registry`.
-5. **Etiquetas (Tags):** NUNCA inventes o deduzcas tags de imagen. Si dudas de la existencia exacta de un hash/etiqueta, usa `latest`. Tags falsos provocan descargas silently-failed y desencadenan estado de contenedor `missing`.
-6. **Macro-Services (Resolución Dinámica):** Para despliegues complejos compuestos por múltiples contenedores acoplados (ej: Supabase, Nextcloud), DEBES realizar una búsqueda web previa para localizar el `.env` o el `docker-compose.yml` oficial maestro de los fabricantes. Tras la investigación, **debes extraer las tags de las versiones probadas y declararlas explícitamente como variables en el `config.env`** generador, usándolas en tu `.yml` como `$MI_VERSION`. Así mantienes la coherencia de variables nativa del proyecto.
-7. **Sub-Volumes (Integridad Arquitectónica):** NO inventes ni resumas "docker-compose.yml" de Macro-Stacks (ej: Supabase) ignorando sus volúmenes, carpetas y scripts de inicialización de Base de Datos. Si identificas que el ecosistema oficial reposa sobre directorios de volumen nativos (como carpetas de scripts SQL `init-db.d/`), **DEBES generar comandos en `do_install` que descarguen esos directorios (ej. con un clone sparse de git o wget iterativo) al `$INSTALL_DIR`** de forma previa a la instanciación para evitar que fallen los contenedores dependientes por permisos de esquema o tablas inexistentes.
-8. **Variables Críticas (Previsión de Crasheos):** Antes de plantear el `docker-compose.yml`, debes examinar exhaustivamente el `.env.example` o la documentación oficial del fabricante para discriminar qué parámetros son esenciales. **No omitas variables de entorno orgánicas obligatorias** para un arranque funcional (ej. URLs de callback externas, tokens internos pre-generados o contraseñas core). Sin embargo, **NO incluyas a ciegas absolutamente todos los parámetros** (omite variables experimentales, opcionales, o analíticas secundarias que no sean críticas). Recrea solo el `environment:` estrictamente necesario y centralízalo a través de nuestro `config.env`.
-9. **Integración con Arcane (Visibility):** Todo nuevo servicio debe integrarse en el panel de control **Arcane**. Esto implica tres requisitos obligatorios:
-   - **Labels en Compose:** El contenedor principal debe incluir labels para icono (`dev.arcane.icon`), categoría (`dev.arcane.category`), nombre de proyecto (`com.docker.compose.project`), y directorio de trabajo simulado (`com.docker.compose.project.working_dir=/app/data/projects/<slug>`).
-   - **Registro del Proyecto:** El script `.sh` debe llamar a `register_arcane_project "<slug>" "$INSTALL_DIR"` tras el despliegue.
-   - **Variables Estéticas:** Los valores de icono y categoría deben ser parametrizables desde `config.env`.
-10. **Nombres de Contenedor Explícitos (Health Checks):** Define siempre `container_name: <nombre>` debajo de cada bloque de servicio (`image: x`) en tu `docker-compose.yml`. Si no lo haces, `podman-compose` generará nombres aleatorios y las comprobaciones de estado `verify_containers_running` fracasarán en el despliegue con estatus "missing".
-11. **Auto-Registro:** Todo servicio debe incluir un archivo `.registry` en su carpeta de proyecto con la línea de registro exacta que se usará en `deploy.sh`.
-12. **One IP per Project (Networking):** Para garantizar el aislamiento y la identidad de red, cada proyecto DEBE tener una IP estática asignada dentro de la red `internal_net` (172.170.1.0/24).
-    - **Script:** Debe llamar a `assign_project_ip` antes de generar el `.env`.
-    - **Config:** La variable `PROJECT_IP` debe persistirse en el `.env` para que el `docker-compose.yml` la utilice.
-    - **Compose:** Todos los servicios del proyecto deben compartir esta IP usando la directiva `ipv4_address`.
-13. **Modo de Desarrollo (Pruebas Locales):** El script debe incluir soporte para `LIB_LOCAL`. Esto permite probar cambios en los archivos locales sin necesidad de subirlos a GitHub indicando `export LIB_LOCAL=$(pwd)/lib/lib.sh`.
-14. **Investigación de Terceros (Community First):** Antes de implementar un stack complejo desde cero, el paso obligatorio es buscar "community scripts" o "all-in-one bundles" (ej: `community-scripts.org` o proyectos `aio` en GitHub). Estos suelen resolver problemas de replicación, certificados y configuración que son difíciles de orquestar manualmente.
+1. **Rootless & SELinux:** Cero referencias a `sudo`. Todo mapeo de carpetas en `docker-compose.yml` DEBE terminar en `:Z` para compatibilidad con SELinux en Podman.
+2. **Secretos Dinámicos:** Nunca pongas passwords fijos en `config.env`. Deben generarse vía bash en el script (usando `openssl rand`) y persistirse en el `.env` local.
+3. **Tags de Imagen (Precisión):** NUNCA inventes o deduzcas tags de imagen. Si dudas, usa `latest`. Tags erróneos causan estados `missing` silenciosos.
+4. **Macro-Services (Resolución Dinámica):** Si el servicio es complejo (multi-contenedor), realiza una búsqueda web previa para localizar el `.env` o `docker-compose.yml` oficial. Extrae las tags probadas y decláralas como variables en el `config.env`.
+5. **Sub-Volumes & Integridad:** En servicios que dependen de carpetas de inicialización (ej. `init-db.d/`), genera comandos en `do_install` para descargar esos directorios antes de arrancar los contenedores.
+6. **Integración con Arcane (Visibility):** El contenedor principal requiere labels para icono (`dev.arcane.icon`), categoría (`dev.arcane.category`), nombre de proyecto (`com.docker.compose.project`), y directorio de trabajo (`com.docker.compose.project.working_dir=/app/data/projects/<slug>`).
+7. **Nombres de Contenedor Explícitos:** Define siempre `container_name: <nombre>` en cada servicio de Compose. Sin esto, las comprobaciones de estado de nuestro framework fallarán.
+8. **Sincronización de Entorno (CRÍTICO):** Cualquier variable declarada en `config.env` que se use en `docker-compose.yml` (especialmente versiones como `${MONGO_VERSION}`) **DEBE** ser añadida explícitamente a la función `generate_runtime_env` del script `.sh`. Si olvidas añadir una versión al `.env` final, Podman fallará con el error `invalid reference format`.
+9. **Fin de Línea Unix (LF):** Todos los archivos `.sh` y `.env` deben ser guardados estrictamente con formato de fin de línea Unix (LF). El formato Windows (CRLF) causará errores sintácticos invisibles como `\r: command not found`.
+10. **Modo de Desarrollo (Pruebas Locales):** El script debe incluir soporte para `LIB_LOCAL`. Esto permite probar cambios locales sin necesidad de subirlos a GitHub indicando `export LIB_LOCAL=$(pwd)/lib/lib.sh`. El script debe deducir la ruta del repositorio basándose en la ubicación de `LIB_LOCAL`.
+11. **Investigación de Terceros (Community First):** Antes de implementar un stack complejo desde cero, el paso obligatorio es buscar "community scripts" o "all-in-one bundles" (ej: `community-scripts.org` o proyectos `aio` en GitHub).
+12. **Menú de Gestión Interactivo:** Si el servicio ya está instalado (detectado por `check_existing_installation`), el script DEBE mostrar un menú interactivo con las opciones: 1) Start, 2) Update, 3) Uninstall, 0) Cancel.
+
+---
 
 **ESQUELETO OBLIGATORIO PARA `<slug>.sh`:**
-No inventes funciones. Limítate a rellenar este exacto molde (usando variables base como `$HOST_IP` y `$PUID`):
 
 ```bash
 #!/bin/bash
@@ -91,15 +86,7 @@ do_uninstall() {
     UNINSTALL_SYSTEMD="container-<slug>.service" 
     # shellcheck disable=SC2034
     UNINSTALL_CONTAINERS=("<main_container>")
-    
-    # NOTE: UNINSTALL_IMAGES array is only for static fallback.
-    # The engine now automatically discovers images from docker-compose.yml.
-    # shellcheck disable=SC2034
-    UNINSTALL_IMAGES=("<fqdn_imagen_exacta>")
-    
-    # shellcheck disable=SC2034
     UNINSTALL_VOLUMES=("<array_volumenes_persistentes>")
-    # shellcheck disable=SC2034
     UNINSTALL_DIRS=()
     uninstall_generic_service
 }
@@ -132,6 +119,8 @@ deploy_and_persist() {
         fi
     fi
     
+    # Pre-cleanup to avoid "name already in use" errors on retries
+    podman-compose down 2>/dev/null || true
     podman-compose up -d > /dev/null 2>&1
     verify_containers_running <tus_contenedores_aqui>
     
@@ -167,6 +156,15 @@ print_success() {
     echo "================================================================="
 }
 
+prepare_directories() {
+    log "Preparing data directories..."
+    check_install_dir_writable "$INSTALL_DIR"
+    mkdir -p "$INSTALL_DIR"
+    # Ensure containers can always write to these folders even in complex rootless mappings
+    # sudo chown -R "${PUID:-$UID}:${PGID:-$UID}" "$INSTALL_DIR/data"
+    log "Directories ready."
+}
+
 # -----------------------------------------------------------------------------
 # REQUIRED ACTIONS
 # -----------------------------------------------------------------------------
@@ -178,21 +176,26 @@ do_install() {
         log "[DEV] LIB_LOCAL detected. Using local project files."
         TMP_DIR=$(mktemp -d)
         trap 'rm -rf "$TMP_DIR"' EXIT
-        # Assumes execution from root or projects/<slug>
-        if [ -f "projects/<slug>/config.env" ]; then
-            cp "projects/<slug>/config.env" "projects/<slug>/docker-compose.yml" "$TMP_DIR/"
+        
+        local SCRIPT_DIR REPO_ROOT
+        SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+        REPO_ROOT="$(cd "$(dirname "$LIB_LOCAL")/.." && pwd)"
+        
+        if [ -f "$SCRIPT_DIR/config.env" ]; then
+            cp "$SCRIPT_DIR/config.env" "$SCRIPT_DIR/docker-compose.yml" "$TMP_DIR/"
+        elif [ -f "$REPO_ROOT/projects/<slug>/config.env" ]; then
+            cp "$REPO_ROOT/projects/<slug>/config.env" "$REPO_ROOT/projects/<slug>/docker-compose.yml" "$TMP_DIR/"
         else
-            cp config.env docker-compose.yml "$TMP_DIR/"
+            err "Local files not found in $SCRIPT_DIR or $REPO_ROOT/projects/<slug>"
+            exit 1
         fi
     fi
 
     offer_interactive_mode; load_configuration; detect_host_ip
-    # manage_credentials "$INSTALL_DIR" MIVAR_SECRETA
     setup_lingering_and_socket
     assign_project_ip
     
-    check_install_dir_writable "$INSTALL_DIR"
-    mkdir -p "$INSTALL_DIR"
+    prepare_directories
     mv -f "$TMP_DIR/config.env" "$INSTALL_DIR/config.env"
     mv -f "$TMP_DIR/docker-compose.yml" "$INSTALL_DIR/docker-compose.yml"
     
@@ -202,9 +205,7 @@ do_install() {
     print_success
 }
 
-do_start() {
-    systemctl --user start container-<slug>.service
-}
+do_start() { systemctl --user start container-<slug>.service; }
 
 do_update() {
     # Development Mode: Use local files if LIB_LOCAL is active
@@ -214,10 +215,18 @@ do_update() {
         log "[DEV] LIB_LOCAL detected. Using local project files."
         TMP_DIR=$(mktemp -d)
         trap 'rm -rf "$TMP_DIR"' EXIT
-        if [ -f "projects/<slug>/config.env" ]; then
-            cp "projects/<slug>/config.env" "projects/<slug>/docker-compose.yml" "$TMP_DIR/"
+        
+        local SCRIPT_DIR REPO_ROOT
+        SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+        REPO_ROOT="$(cd "$(dirname "$LIB_LOCAL")/.." && pwd)"
+        
+        if [ -f "$SCRIPT_DIR/config.env" ]; then
+            cp "$SCRIPT_DIR/config.env" "$SCRIPT_DIR/docker-compose.yml" "$TMP_DIR/"
+        elif [ -f "$REPO_ROOT/projects/<slug>/config.env" ]; then
+            cp "$REPO_ROOT/projects/<slug>/config.env" "$REPO_ROOT/projects/<slug>/docker-compose.yml" "$TMP_DIR/"
         else
-            cp config.env docker-compose.yml "$TMP_DIR/"
+            err "Local files not found in $SCRIPT_DIR or $REPO_ROOT/projects/<slug>"
+            exit 1
         fi
     fi
 
@@ -226,11 +235,12 @@ do_update() {
     
     # Preserve PROJECT_IP from existing .env if it exists
     if [ -f "$INSTALL_DIR/.env" ]; then
-        PROJECT_IP=$(grep "^PROJECT_IP=" "$INSTALL_DIR/.env" | cut -d'=' -f2- | tr -d '"' | tr -d "'")
+        PROJECT_IP=$(grep "^PROJECT_IP=" "$INSTALL_DIR/.env" | cut -d'=' -f2- | tr -d '"' | tr -d "'" | head -1)
     else
         assign_project_ip
     fi
 
+    prepare_directories
     generate_runtime_env
     
     cp "$INSTALL_DIR/config.env" "$INSTALL_DIR/config.env.bak" 2>/dev/null || true
@@ -297,19 +307,15 @@ fi
 ```yaml
 services:
   main-app:
-    image: ${IMAGE_TAG}
+    image: docker.io/library/${IMAGE_TAG}
     container_name: ${CONTAINER_NAME}
     networks:
       internal_net:
         ipv4_address: ${PROJECT_IP}
-    # ... rest of config
 
 networks:
   internal_net:
     external: true
 ```
-
-Por último, genera el archivo `.registry` y devuélveme la línea de registro exacta para el menú `deploy.sh` bajo la sintaxis completa de 6 campos (incluyendo el endpoint dinámico `{IP}`):
-`"Nombre|projects/<slug>/<slug>.sh|/opt/<slug>|<main_container>|Descripción breve|Servicio: {IP}:<PORT>"`
 
 ---
